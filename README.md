@@ -1,41 +1,70 @@
 # CAN-Enabled Weather Telematics Dashboard
 
-## Overview
-This project develops a FreeRTOS-based telematics dashboard utilizing an STM32 microcontroller. It integrates real-time sensor data, specifically GPS and local temperature, with industrial automotive CAN bus communication and cloud-based weather information. The system is designed to display critical environmental and positional data on a local SPI-driven screen while interacting with a desktop companion application for external API data retrieval.
+## Project Overview
+
+The CAN-Enabled Weather Telematics Dashboard is a FreeRTOS-based embedded system designed to provide real-time environmental and location data within an automotive context. It serves as a bridge between industrial CAN bus networks, local sensor inputs (temperature, humidity, pressure, GPS), and cloud-based weather information. The system leverages an STM32 microcontroller to manage concurrent tasks, process sensor data, display vital information on an SPI-driven LCD, and interact with a PC-based application for external data integration via the CAN bus.
 
 ## Features
 
-### Embedded System Core
-*   **Microcontroller**: STM32 Nucleo-F446RE (ARM Cortex-M4) serves as the central processing unit.
-*   **Real-Time Operating System**: Implements FreeRTOS for robust multi-threaded task management, ensuring concurrent operation and responsiveness.
-*   **Peripheral Integration**:
-    *   **I2C**: Interface for accurate temperature sensor data acquisition.
-    *   **UART**: Dedicated for communication with a GPS module, processing incoming NMEA sentences.
-    *   **SPI**: Drives a 2.8-inch display for user interface output.
-    *   **CAN**: Manages industrial automotive CAN bus communication.
-*   **User Interface**: Renders indoor temperature, GPS location, and dynamic outdoor weather updates on the SPI display using an integrated graphics framework.
+### Core System & RTOS Management
 
-### Communication & Data Processing
-*   **Custom GPS Parser**: Features a manual NMEA GPS string parser specifically for `$GPRMC` and `$GPGGA` sentences, utilizing UART IDLE interrupt or circular DMA for efficient data reception.
-*   **GPS Data Encoding**: Efficiently packs parsed raw GPS coordinates (latitude/longitude) into standard 8-byte CAN data frames for transmission.
-*   **CAN Bus Telemetry**:
-    *   Transmits processed local telemetry, including GPS coordinates, across the CAN bus.
-    *   Receives external weather data, specifically outdoor temperature, from the companion desktop application via the CAN bus.
-*   **Local Sensor Data**: Samples the I2C temperature sensor at predefined, fixed intervals.
+*   **High-Performance Core Configuration:** STM32F446RE microcontroller configured for optimal performance with a 180 MHz CPU clock and 45 MHz APB1 bus.
+*   **FreeRTOS Integration:** Full FreeRTOS kernel deployment including heap and tick timer configurations, and NVIC interrupt priority adjustments for robust multi-tasking.
+*   **Multi-Tasking Architecture:** Implemented FreeRTOS tasks for dedicated GPS data parsing, local telemetry sampling, CAN bus communication, and display UI management.
+*   **Inter-Task Communication & Synchronization:** Utilizes FreeRTOS queues for secure data transfer between tasks and mutexes for protecting shared resources like the SPI display bus.
+*   **System Stability & Watchdog:** Integrated Independent Hardware Watchdog Timer (IWDG) for automatic system resets, complemented by software task check-ins for comprehensive fault recovery.
+*   **Memory Optimization:** Task stack sizes are tuned using `uxTaskGetStackHighWaterMark()` to ensure efficient RAM utilization.
 
-### Desktop Companion
-*   **CAN-to-USB Bridge**: Establishes communication between the STM32's CAN bus and a host laptop through a hardware adapter.
-*   **CAN Data Ingestion**: Reads raw CAN data frames, extracting GPS coordinates transmitted by the embedded system.
-*   **Cloud API Integration**: Queries the OpenWeather API using the extracted GPS coordinates to obtain real-time outdoor weather conditions.
-*   **External Data Transmission**: Transmits the retrieved current outdoor temperature back to the STM32 embedded board over the CAN bus.
+### CAN Bus Communication
+
+*   **CAN Controller Initialization:** STM32 bxCAN1 peripheral configured for standard bus frequencies (e.g., 500 kbps) with precise bit-timing and an 87.5% sample point.
+*   **Physical Layer Interface:** Seamless integration with the Waveshare SN65HVD230 CAN Transceiver, ensuring robust physical layer connectivity with a 120-ohm termination resistor.
+*   **CAN Packet Transmission:** Capable of sending standard 8-byte diagnostic CAN frames.
+*   **Efficient CAN Reception:** Optimized Interrupt Service Routine (ISR) for CAN RX FIFO 0/1, enabling instant data ingestion, immediate buffer release, and non-blocking task notification (`xTaskNotifyFromISR()`).
+*   **Hardware Filtering:** Configured STM32 hardware filter banks to automatically discard irrelevant CAN frames at the hardware level, maintaining task responsiveness under high network load.
+*   **PC Diagnostic Connectivity:** Interfaced with a DSD TECH SH-C30A USB-to-CAN adapter for external bus monitoring, debugging, and packet injection from a PC.
+
+### Sensor Integration
+
+*   **Environmental Sensing (BME280):**
+    *   I2C1 peripheral configured for Standard (100 kHz) or Fast Mode (400 kHz).
+    *   Integrated Bosch BME280 API driver to read ambient temperature, relative humidity, and barometric pressure.
+    *   Live temperature data verified through serial output.
+*   **GPS Location Tracking (GY-NEO6MV2):**
+    *   USART1 peripheral configured at 9600 baud (8N1).
+    *   Non-blocking data acquisition via Direct Memory Access (DMA) in circular buffer mode for continuous NMEA string streaming.
+    *   Integrated NMEA parser (e.g., `minmea` C library) to extract precise latitude, longitude, and movement metrics from `$GPRMC` and `$GPGGA` sentences.
+
+### Display & User Interface
+
+*   **SPI Display Control:** Elecrow 2.8-inch TFT LCD (ILI9341 driver) connected via SPI1, configured for optimal clock frequencies (10 MHz to 22.5 MHz).
+*   **Graphics Driver Integration:** Utilizes a lightweight ILI9341 display core port for rendering graphical elements.
+*   **Dynamic UI Rendering:** Capable of clearing the screen, filling the canvas with solid colors, and drawing formatted string segments to display live sensor values and GPS positions.
+*   **Thread-Safe Display Access:** SPI bus access is guarded by a FreeRTOS Mutex, preventing data corruption and bus collisions during concurrent UI updates.
+
+### External Integration
+
+*   **CAN-to-Cloud Bridge (PC Node):** A companion script (Python/Rust) on a connected PC reads CAN-transmitted GPS coordinates, queries an online OpenWeather API for current outdoor conditions, and transmits external temperature data back to the STM32 over the CAN bus.
 
 ## Tech Stack
-*   **Embedded Hardware**: STM32 Nucleo-F446RE (ARM Cortex-M4), I2C Temperature Sensor, UART GPS Module, 2.8-inch SPI Display, CAN Controller, CAN-to-USB Hardware Adapter.
-*   **Embedded Software**: C/C++, ST HAL Library, FreeRTOS.
-*   **Desktop Software**: Python (with `python-can` library) or Rust.
-*   **Cloud Services**: OpenWeather API.
-*   **Protocols**: CAN Bus, I2C, UART (NMEA), SPI.
+
+*   **Microcontroller:** STMicroelectronics STM32 Nucleo-F446RE (ARM Cortex-M4)
+*   **Real-time Operating System (RTOS):** FreeRTOS
+*   **Embedded Frameworks/Libraries:**
+    *   ST HAL Library
+    *   Bosch BME280 API Driver
+    *   ILI9341 Display Driver (e.g., afiskon/stm32-ili9341)
+    *   minmea C library (for NMEA parsing)
+*   **Communication Protocols:** CAN Bus, I2C, UART, SPI
+*   **External Hardware:**
+    *   Waveshare SN65HVD230 CAN Transceiver
+    *   Elecrow 2.8-Inch TFT LCD Touch Screen Shield (ILI9341 Driver)
+    *   GY-NEO6MV2 NEO-6M GPS Module
+    *   Waveshare BME280 Environmental Sensor
+    *   DSD TECH SH-C30A USB to CAN Bus Adapter
+*   **Programming Languages:** C/C++ (Embedded Firmware), Python / Rust (PC Bridge Application)
 
 ## Current Status
-*   **Status**: In-Progress
-*   **Version**: 0.0.0
+
+**Status:** in-progress
+**Version:** 0.0.0
