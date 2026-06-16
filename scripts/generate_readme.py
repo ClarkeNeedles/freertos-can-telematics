@@ -52,16 +52,33 @@ def generate_readme():
             log_content += f.read()
             log_content += f"\n--- End of Log: {filename} ---\n"
 
-    # Craft the instructions for the free Gemini 2.5 Flash model
+    # Craft defensive structure instructions for the model
     prompt = (
-        f"You are an expert technical writer. Read through these project logbook entries "
-        f"and synthesize them into a clean, professional, and comprehensive README.md file.\n\n"
-        f"Your instructions:\n"
-        f"- Analyze the free-form notes across all logs to extract the actual features implemented.\n"
-        f"- Look at the metadata at the top of the most recent log file to determine the latest project status and version.\n"
-        f"- Generate a structured README containing: Project Name, a high-level overview, a logically categorized list of all completed features, the tech stack (infer this from their notes), and current version/status.\n"
-        f"- Ignore conversational developer ramblings, temporary bugs, or unfinished thoughts. Focus strictly on working capabilities.\n"
-        f"- Output ONLY raw, valid markdown syntax. Do not wrap your entire response inside standard markdown code blocks (e.g., do not start with ```markdown).\n\n"
+        f"You are an expert technical writer. Synthesize the provided project logbooks "
+        f"into a clean, professional README.md file using a strict structural template.\n\n"
+        f"CRITICAL LAYOUT RULE:\n"
+        f"Evaluate the project data for each section requested below. If a section is not "
+        f"relevant to the project, lacks sufficient tracking context, or has absolutely "
+        f"no data provided in the logs, OMIT that section entirely. Do not generate empty headers, "
+        f"and do not write generic filler or placeholder text.\n\n"
+        f"REQUESTED README SECTIONS (Include ONLY if sufficient data exists):\n"
+        f"1. Badges: Include status pills, project size indicators, or license badges if declared in metadata.\n"
+        f"2. Project Title\n"
+        f"3. High-Level Overview\n"
+        f"4. Table of Contents: Dynamically map only the sections that survive the data filter.\n"
+        f"5. System Architecture\n"
+        f"6. Tech Stack and Dependencies\n"
+        f"7. Features: Synthesize free-form notes to extract a clean, logically categorized list of working capabilities.\n"
+        f"8. Prerequisites / System Requirements\n"
+        f"9. Step-by-Step Installation / Setup\n"
+        f"10. Configuration & Environment Variables\n"
+        f"11. Quick Start / Usage Examples\n"
+        f"12. Hardware Pinout / Interconnect Map\n"
+        f"13. License Declaration\n\n"
+        f"OUTPUT CONSTRAINT:\n"
+        f"- Output ONLY raw, valid markdown syntax.\n"
+        f"- Do not wrap the entire response inside markdown code blocks (do not start with ```markdown).\n"
+        f"- Ignore conversational developer ramblings, active debugging logs, or temporary errors.\n\n"
         f"Project Logs Data:\n{log_content}"
     )
 
