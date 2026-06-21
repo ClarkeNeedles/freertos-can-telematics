@@ -1,1 +1,50 @@
+# =========================
+# STM32CubeIDE / Eclipse
+# =========================
+*.launch
+*.pydevproject
+.cproject
+.project
+.settings/
+Debug/
+Release/
+*.elf
+*.hex
+*.bin
+*.map
+*.list
+*.su
+*.d
+*.o
+*.obj
+
+# =========================
+# STM32CubeMX generated
+# =========================
+*.bak
+*.old
+*.tmp
+
+# =========================
+# Build folders (CMake or Make)
+# =========================
+build/
+cmake-build-*/
+
+# =========================
+# IDE / OS noise
+# =========================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs / outputs
+# =========================
+*.log
+
+# =========================
+# Other
+# =========================
 .env
