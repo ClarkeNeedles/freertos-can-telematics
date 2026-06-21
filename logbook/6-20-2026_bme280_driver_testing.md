@@ -33,6 +33,9 @@ version: 0.1.0
 - CubeIDE generates:
   - SDA (data line)
   - SCL (clock line)
+- Put the driver coder inside of Drivers/BME280
+	- Update the C/C++ build settings to use the driver directory in the compiler include paths
+	- project --> properties --> C/C++ build --> settings --> MCU GCC compiler --> include paths
 
 ---
 
