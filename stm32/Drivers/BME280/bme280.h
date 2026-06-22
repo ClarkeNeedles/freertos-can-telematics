@@ -9,27 +9,12 @@
 #ifndef __BME280_H
 #define __BME280_H
 
-#include "main.h"
 #include "stm32f4xx_hal.h"
-
-// Select communication interface
-#define BME280_USE_I2C 0/**
-  ******************************************************************************
-  * @file           : bme280.h
-  * @brief          : BME280 sensor driver header
-  * @author         : Clarke Needles
-  ******************************************************************************
-  */
-
-#ifndef BME280_H
-#define BME280_H
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "stm32f4xx_hal.h"
-#include <stdint.h>
 
 /*
  * ============================================================================
@@ -57,8 +42,8 @@ extern "C" {
 #define BME280_STANDBY_250  0x03
 #define BME280_STANDBY_500  0x04
 #define BME280_STANDBY_1000 0x05
-#define BME280_STANDBY_10    0x06
-#define BME280_STANDBY_20    0x07
+#define BME280_STANDBY_10   0x06
+#define BME280_STANDBY_20   0x07
 
 // Filter settings
 #define BME280_FILTER_OFF   0x00
