@@ -25,7 +25,7 @@ HAL_StatusTypeDef BME280_ReadCalibration(BME280_Handle_t *dev)
 		dev->address, 
 		0x88, 
 		I2C_MEMADD_SIZE_8BIT, 
-		calib, 
+		&calib, 
 		25, 
 		HAL_MAX_DELAY
 	);
@@ -38,7 +38,7 @@ HAL_StatusTypeDef BME280_ReadCalibration(BME280_Handle_t *dev)
 		dev->address, 
 		0xE1, 
 		I2C_MEMADD_SIZE_8BIT, 
-		calib2, 
+		&calib2, 
 		7, 
 		HAL_MAX_DELAY
 	);
@@ -85,7 +85,7 @@ HAL_StatusTypeDef BME280_Reset(BME280_Handle_t *dev)
 		dev->address, 
 		BME280_REG_RESET, 
 		I2C_MEMADD_SIZE_8BIT, 
-		&0xB6, 
+		(uint8_t *)0xB6, 
 		1, 
 		HAL_MAX_DELAY
 	);
@@ -127,7 +127,7 @@ HAL_StatusTypeDef BME280_Sleep(BME280_Handle_t *dev)
 		dev->address, 
 		BME280_REG_CTRL_MEAS, 
 		I2C_MEMADD_SIZE_8BIT, 
-		&BME280_MODE_SLEEP, 
+		(uint8_t *)BME280_MODE_SLEEP, 
 		1, 
 		HAL_MAX_DELAY
 	);
@@ -250,7 +250,7 @@ HAL_StatusTypeDef BME280_ReadRaw(BME280_Handle_t *dev,
 		dev->address, 
 		BME280_REG_PRESS_MSB, 
 		I2C_MEMADD_SIZE_8BIT, 
-		data, 
+		&data, 
 		8, 
 		HAL_MAX_DELAY
 	);
