@@ -140,7 +140,9 @@ typedef struct
  * ============================================================================
  */
 
-/**
+/*******************************************************************************
+ * BME280_Init()
+ *
  * @brief Initializes the BME280 sensor with user configuration.
  *
  * This function performs a sequence of verification, reset, and configuration steps
@@ -157,10 +159,12 @@ typedef struct
  *
  * @retval HAL_OK    Sensor successfully initialized and configured.
  * @retval HAL_ERROR Device verification failed, reset timed out, or I2C communication errored.
- */
+ ******************************************************************************/
 HAL_StatusTypeDef BME280_Init(BME280_Handle_t *dev, BME280_Config_t *cfg);
 
-/**
+/*******************************************************************************
+ * BME280_Reset()
+ *
  * @brief Performs a software reset on the BME280 sensor.
  *
  * This function writes the soft reset command code (0xB6) to the sensor's
@@ -175,10 +179,12 @@ HAL_StatusTypeDef BME280_Init(BME280_Handle_t *dev, BME280_Config_t *cfg);
  *
  * @retval HAL_OK    The reset command was successfully sent and the startup delay has expired.
  * @retval HAL_ERROR The I2C write transaction failed.
- */
+ ******************************************************************************/
 HAL_StatusTypeDef BME280_Reset(BME280_Handle_t *dev);
 
-/**
+/*******************************************************************************
+ * BME280_Sleep()
+ *
  * @brief Places the BME280 sensor into sleep mode.
  *
  * This function switches the sensor's power mode to sleep by writing to the
@@ -193,10 +199,12 @@ HAL_StatusTypeDef BME280_Reset(BME280_Handle_t *dev);
  *
  * @retval HAL_OK    The sensor successfully entered sleep mode.
  * @retval HAL_ERROR The I2C write transaction failed.
- */
+ ******************************************************************************/
 HAL_StatusTypeDef BME280_Sleep(BME280_Handle_t *dev);
 
-/**
+/*******************************************************************************
+ * BME280_Wakeup()
+ *
  * @brief Wakes up the BME280 sensor by forcing a measurement.
  *
  * This function reads the current control measurement register, modifies the mode 
@@ -211,10 +219,12 @@ HAL_StatusTypeDef BME280_Sleep(BME280_Handle_t *dev);
  *
  * @retval HAL_OK    The sensor was successfully switched to forced measurement mode.
  * @retval HAL_ERROR The I2C read or write transaction failed.
- */
+ ******************************************************************************/
 HAL_StatusTypeDef BME280_Wakeup(BME280_Handle_t *dev);
 
-/**
+/*******************************************************************************
+ * BME280_CheckID()
+ *
  * @brief Verifies the BME280 sensor's unique chip identifier.
  *
  * This function reads the device identification register and compares the retrieved
@@ -225,10 +235,12 @@ HAL_StatusTypeDef BME280_Wakeup(BME280_Handle_t *dev);
  *
  * @retval HAL_OK    The sensor was successfully identified and matches the expected chip ID.
  * @retval HAL_ERROR The I2C read transaction failed, or the retrieved ID does not match.
- */
+ ******************************************************************************/
 HAL_StatusTypeDef BME280_CheckID(BME280_Handle_t *dev);
 
-/**
+/*******************************************************************************
+ * BME280_ReadRaw()
+ *
  * @brief Reads the uncompensated raw ADC data from the BME280 sensor.
  *
  * This function performs an 8-byte burst read starting from the pressure MSB register
@@ -240,14 +252,16 @@ HAL_StatusTypeDef BME280_CheckID(BME280_Handle_t *dev);
  *       measurement cycle, preventing data inconsistency bugs.
  *
  * @param[in]  dev Pointer to the BME280 device handle containing I2C details.
- * @param[out] raw Pointer to the output structure where the raw ADC values will be stored.
+ * @param[out] pData Pointer to the output structure where the raw ADC values will be stored.
  *
  * @retval HAL_OK    The device was verified and the raw data was successfully read and parsed.
  * @retval HAL_ERROR The device ID check failed, or the I2C burst read transaction failed.
- */
-HAL_StatusTypeDef BME280_ReadRaw(BME280_Handle_t *dev, BME280_RawData_t *raw);
+ ******************************************************************************/
+HAL_StatusTypeDef BME280_ReadRaw(BME280_Handle_t *dev, BME280_RawData_t *pData);
 
-/**
+/*******************************************************************************
+ * BME280_ReadCalibration()
+ *
  * @brief Reads and parses the factory calibration coefficients from the sensor.
  *
  * This function reads the non-contiguous calibration register blocks from the BME280.
@@ -265,10 +279,12 @@ HAL_StatusTypeDef BME280_ReadRaw(BME280_Handle_t *dev, BME280_RawData_t *raw);
  *
  * @retval HAL_OK    All calibration data was successfully retrieved and parsed.
  * @retval HAL_ERROR An I2C communication error occurred during one of the reads.
- */
+ ******************************************************************************/
 HAL_StatusTypeDef BME280_ReadCalibration(BME280_Handle_t *dev);
 
-/**
+/*******************************************************************************
+ * BME280_ReadTemperature()
+ *
  * @brief Reads the current temperature from the sensor.
  *
  * This function triggers a fresh raw burst read from the sensor, extracts the
@@ -276,14 +292,16 @@ HAL_StatusTypeDef BME280_ReadCalibration(BME280_Handle_t *dev);
  * It also populates the intermediate @c t_fine variable inside the device handle.
  *
  * @param[in,out] dev  Pointer to the BME280 device handle where @c t_fine will be updated.
- * @param[out]    temp Pointer to the floating-point variable where the temperature (°C) will be stored.
+ * @param[out]    pData Pointer to the floating-point variable where the temperature (°C) will be stored.
  *
  * @retval HAL_OK    The temperature was successfully read and compensated.
  * @retval HAL_ERROR The underlying I2C raw read transaction failed.
- */
-HAL_StatusTypeDef BME280_ReadTemperature(BME280_Handle_t *dev, float *temp);
+ ******************************************************************************/
+HAL_StatusTypeDef BME280_ReadTemperature(BME280_Handle_t *dev, float *pData);
 
-/**
+/*******************************************************************************
+ * BME280_ReadPressure()
+ *
  * @brief Reads the current barometric pressure from the sensor.
  *
  * This function captures a raw burst read from the device, calculates the updated
@@ -294,14 +312,16 @@ HAL_StatusTypeDef BME280_ReadTemperature(BME280_Handle_t *dev, float *temp);
  *       function implicitly calculates and refreshes the device's internal temperature calibration state.
  *
  * @param[in,out] dev   Pointer to the BME280 device handle where @c t_fine will be updated.
- * @param[out]    press Pointer to the floating-point variable where the pressure (Pa) will be stored.
+ * @param[out]    pData Pointer to the floating-point variable where the pressure (Pa) will be stored.
  *
  * @retval HAL_OK    The pressure was successfully read and compensated.
  * @retval HAL_ERROR The underlying I2C raw read transaction failed.
- */
-HAL_StatusTypeDef BME280_ReadPressure(BME280_Handle_t *dev, float *press);
+ ******************************************************************************/
+HAL_StatusTypeDef BME280_ReadPressure(BME280_Handle_t *dev, float *pData);
 
-/**
+/*******************************************************************************
+ * BME280_ReadHumidity()
+ *
  * @brief Reads the current relative humidity from the sensor.
  *
  * This function gathers a raw burst read from the device, calculates the updated 
@@ -312,14 +332,16 @@ HAL_StatusTypeDef BME280_ReadPressure(BME280_Handle_t *dev, float *press);
  *       function implicitly calculates and refreshes the device's internal temperature calibration state.
  *
  * @param[in,out] dev Pointer to the BME280 device handle where @c t_fine will be updated.
- * @param[out]    hum Pointer to the floating-point variable where the humidity (%RH) will be stored.
+ * @param[out]    pData Pointer to the floating-point variable where the humidity (%RH) will be stored.
  *
  * @retval HAL_OK    The humidity was successfully read and compensated.
  * @retval HAL_ERROR The underlying I2C raw read transaction failed.
- */
-HAL_StatusTypeDef BME280_ReadHumidity(BME280_Handle_t *dev, float *hum);
+ ******************************************************************************/
+HAL_StatusTypeDef BME280_ReadHumidity(BME280_Handle_t *dev, float *pData);
 
-/**
+/*******************************************************************************
+ * BME280_ReadAll()
+ *
  * @brief Reads all environmental measurements (Temperature, Pressure, Humidity) simultaneously.
  *
  * This is the preferred, high-efficiency function for collecting complete environmental datasets. 
@@ -331,12 +353,12 @@ HAL_StatusTypeDef BME280_ReadHumidity(BME280_Handle_t *dev, float *hum);
  *       read functions sequentially, as it removes redundant I2C transactional overhead.
  *
  * @param[in,out] dev Pointer to the BME280 device handle where @c t_fine will be updated.
- * @param[out]    out Pointer to the output structure where all physical data readings will be saved.
+ * @param[out]    pData Pointer to the output structure where all physical data readings will be saved.
  *
  * @retval HAL_OK    All measurements were successfully pulled, calculated, and stored.
  * @retval HAL_ERROR The underlying I2C raw read transaction failed.
- */
-HAL_StatusTypeDef BME280_ReadAll(BME280_Handle_t *dev, BME280_Data_t *data);
+ ******************************************************************************/
+HAL_StatusTypeDef BME280_ReadAll(BME280_Handle_t *dev, BME280_Data_t *pData);
 
 #ifdef __cplusplus
 }

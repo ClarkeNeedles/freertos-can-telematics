@@ -35,7 +35,9 @@ HAL_StatusTypeDef BME280_Init(BME280_Handle_t *dev,
 	);
 
 	if (status != HAL_OK)
+	{
 		return status;
+	}
 
 	// Config register
 	uint8_t config = (cfg->standby << 5) | (cfg->filter << 2);
@@ -50,7 +52,9 @@ HAL_StatusTypeDef BME280_Init(BME280_Handle_t *dev,
 	);
 
 	if (status != HAL_OK)
+	{
 		return status;
+	}
 
 	// Control measurement register
 	uint8_t ctrl_meas = (cfg->osrs_t << 5) | (cfg->osrs_p << 2) | (cfg->mode);
@@ -65,7 +69,9 @@ HAL_StatusTypeDef BME280_Init(BME280_Handle_t *dev,
 	);
 
 	if (status != HAL_OK)
+	{
 		return status;
+	}
 
 	return HAL_OK;
 } /* BME280_Init() */
@@ -88,7 +94,9 @@ HAL_StatusTypeDef BME280_Reset(BME280_Handle_t *dev)
 	);
 
 	if (status != HAL_OK)
+	{
 		return status;
+	}
 
 	HAL_Delay(100);
 	return HAL_OK;
@@ -127,8 +135,11 @@ HAL_StatusTypeDef BME280_Wakeup(BME280_Handle_t *dev)
 		1, 
 		HAL_MAX_DELAY
 	);
+
 	if (status != HAL_OK)
+	{
 		return status;
+	}
 
 	ctrl |= BME280_MODE_FORCED;
 
@@ -160,11 +171,16 @@ HAL_StatusTypeDef BME280_CheckID(BME280_Handle_t *dev)
 		1, 
 		HAL_MAX_DELAY
 	);
+
 	if (status != HAL_OK)
+	{
 		return status;
+	}
 
 	if (id != BME280_CHIP_ID)
+	{
 		return HAL_ERROR;
+	}
 
 	return HAL_OK;
 } /* BME280_CheckID() */
@@ -173,13 +189,15 @@ HAL_StatusTypeDef BME280_CheckID(BME280_Handle_t *dev)
  BME280_ReadRaw()
  ******************************************************************************/
 HAL_StatusTypeDef BME280_ReadRaw(BME280_Handle_t *dev,
-								 BME280_RawData_t *raw)
+								 BME280_RawData_t *pData)
 {
 	uint8_t data[8];
 	HAL_StatusTypeDef status;
 
 	if (BME280_CheckID(dev) != HAL_OK)
+	{
 		return HAL_ERROR;
+	}
 
 	status = HAL_I2C_Mem_Read(
 		dev->hi2c, 
@@ -192,11 +210,13 @@ HAL_StatusTypeDef BME280_ReadRaw(BME280_Handle_t *dev,
 	);
 
 	if (status != HAL_OK)
+	{
 		return status;
+	}
 
-	raw->raw_press = (int32_t)((data[0] << 12) | (data[1] << 4) | (data[2] >> 4));
-	raw->raw_temp = (int32_t)((data[3] << 12) | (data[4] << 4) | (data[5] >> 4));
-	raw->raw_hum = (int32_t)((data[6] << 8) | data[7]);
+	pData->raw_press = (int32_t)((data[0] << 12) | (data[1] << 4) | (data[2] >> 4));
+	pData->raw_temp = (int32_t)((data[3] << 12) | (data[4] << 4) | (data[5] >> 4));
+	pData->raw_hum = (int32_t)((data[6] << 8) | data[7]);
 
 	return HAL_OK;
 } /* BME280_ReadRaw() */
@@ -221,7 +241,9 @@ HAL_StatusTypeDef BME280_ReadCalibration(BME280_Handle_t *dev)
 	);
 
 	if (status != HAL_OK)
+	{
 		return status;
+	}
 
 	status = HAL_I2C_Mem_Read(
 		dev->hi2c, 
@@ -234,7 +256,9 @@ HAL_StatusTypeDef BME280_ReadCalibration(BME280_Handle_t *dev)
 	);
 
 	if (status != HAL_OK)
+	{
 		return status;
+	}
 
 	dev->calib.dig_T1 = (uint16_t)(calib[1] << 8 | calib[0]);
 	dev->calib.dig_T2 = (int16_t)(calib[3] << 8 | calib[2]);
@@ -260,7 +284,9 @@ HAL_StatusTypeDef BME280_ReadCalibration(BME280_Handle_t *dev)
 	return HAL_OK;
 } /* BME280_ReadCalibration() */
 
-/**
+/*******************************************************************************
+ * BME280_CompensateTemp()
+ *
  * @brief  Compensates the raw temperature ADC reading into degrees Celsius.
  * @note   This is an internal utility function used exclusively within this file.
  *
@@ -273,9 +299,6 @@ HAL_StatusTypeDef BME280_ReadCalibration(BME280_Handle_t *dev)
  * @param[in]     adc_T Raw 20-bit temperature value read from the sensor's ADC.
  *
  * @return The compensated temperature in degrees Celsius (°C).
- */
-/*******************************************************************************
- BME280_CompensateTemp()
  ******************************************************************************/
 static float BME280_CompensateTemp(BME280_Handle_t *dev,
 								   int32_t adc_T)
@@ -292,7 +315,9 @@ static float BME280_CompensateTemp(BME280_Handle_t *dev,
 	return (var1 + var2) / 5120.0;
 } /* BME280_CompensateTemp() */
 
-/**
+/*******************************************************************************
+ * BME280_CompensatePress()
+ *
  * @brief  Compensates the raw pressure ADC reading into Pascals.
  * @note   This is an internal utility function used exclusively within this file.
  * @note   This function relies on @c dev->t_fine. Therefore, @c BME280_CompensateTemp() 
@@ -308,9 +333,6 @@ static float BME280_CompensateTemp(BME280_Handle_t *dev,
  *
  * @return The compensated pressure in Pascals (Pa), or @c 0.0 if a division-by-zero 
  *         condition is detected.
- */
-/*******************************************************************************
- BME280_CompensatePress()
  ******************************************************************************/
 static float BME280_CompensatePress(BME280_Handle_t *dev,
 									int32_t adc_P)
@@ -325,7 +347,9 @@ static float BME280_CompensatePress(BME280_Handle_t *dev,
 	var1 = (1.0 + var1 / 32768.0) * dev->calib.dig_P1;
 
 	if (var1 == 0)
+	{
 		return 0;
+	}
 
 	p = 1048576.0 - adc_P;
 	p = (p - var2 / 4096.0) * 6250.0 / var1;
@@ -335,7 +359,9 @@ static float BME280_CompensatePress(BME280_Handle_t *dev,
 	return p + (var1 + var2 + dev->calib.dig_P7) / 16.0;
 } /* BME280_CompensatePress() */
 
-/**
+/*******************************************************************************
+ * BME280_CompensateHum()
+ *
  * @brief  Compensates the raw humidity ADC reading into percentage Relative Humidity.
  * @note   This is an internal utility function used exclusively within this file.
  * @note   This function relies on @c dev->t_fine. Therefore, @c BME280_CompensateTemp() 
@@ -350,9 +376,6 @@ static float BME280_CompensatePress(BME280_Handle_t *dev,
  * @param[in] adc_H Raw 16-bit humidity value read from the sensor's ADC.
  *
  * @return The compensated relative humidity as a percentage (%RH), clamped between @c 0.0 and @c 100.0.
- */
-/*******************************************************************************
- BME280_CompensateHum()
  ******************************************************************************/
 static float BME280_CompensateHum(BME280_Handle_t *dev,
 								  int32_t adc_H)
@@ -367,9 +390,14 @@ static float BME280_CompensateHum(BME280_Handle_t *dev,
 	h = h * (1.0 - dev->calib.dig_H1 * h / 524288.0);
 
 	if (h > 100.0)
+	{
 		h = 100.0;
+	}
+
 	if (h < 0.0)
+	{
 		h = 0.0;
+	}
 
 	return h;
 } /* BME280_CompensateHum() */
@@ -378,13 +406,15 @@ static float BME280_CompensateHum(BME280_Handle_t *dev,
  BME280_ReadTemperature()
  ******************************************************************************/
 HAL_StatusTypeDef BME280_ReadTemperature(BME280_Handle_t *dev,
-										 float *temp)
+										 float *pData)
 {
 	BME280_RawData_t raw;
 	if (BME280_ReadRaw(dev, &raw) != HAL_OK)
+	{
 		return HAL_ERROR;
+	}
 
-	*temp = BME280_CompensateTemp(dev, raw.raw_temp);
+	*pData = BME280_CompensateTemp(dev, raw.raw_temp);
 
 	return HAL_OK;
 } /* BME280_ReadTemperature() */
@@ -393,13 +423,15 @@ HAL_StatusTypeDef BME280_ReadTemperature(BME280_Handle_t *dev,
  BME280_ReadPressure()
  ******************************************************************************/
 HAL_StatusTypeDef BME280_ReadPressure(BME280_Handle_t *dev,
-									  float *press)
+									  float *pData)
 {
 	BME280_RawData_t raw;
 	if (BME280_ReadRaw(dev, &raw) != HAL_OK)
+	{
 		return HAL_ERROR;
+	}
 
-	*press = BME280_CompensatePress(dev, raw.raw_press);
+	*pData = BME280_CompensatePress(dev, raw.raw_press);
 
 	return HAL_OK;
 } /* BME280_ReadPressure() */
@@ -408,13 +440,15 @@ HAL_StatusTypeDef BME280_ReadPressure(BME280_Handle_t *dev,
  BME280_ReadHumidity()
  ******************************************************************************/
 HAL_StatusTypeDef BME280_ReadHumidity(BME280_Handle_t *dev,
-									  float *hum)
+									  float *pData)
 {
 	BME280_RawData_t raw;
 	if (BME280_ReadRaw(dev, &raw) != HAL_OK)
+	{
 		return HAL_ERROR;
+	}
 
-	*hum = BME280_CompensateHum(dev, raw.raw_hum);
+	*pData = BME280_CompensateHum(dev, raw.raw_hum);
 
 	return HAL_OK;
 } /* BME280_ReadHumidity() */
@@ -423,15 +457,17 @@ HAL_StatusTypeDef BME280_ReadHumidity(BME280_Handle_t *dev,
  BME280_ReadAll()
  ******************************************************************************/
 HAL_StatusTypeDef BME280_ReadAll(BME280_Handle_t *dev,
-								 BME280_Data_t *out)
+								 BME280_Data_t *pData)
 {
 	BME280_RawData_t raw;
 	if (BME280_ReadRaw(dev, &raw) != HAL_OK)
+	{
 		return HAL_ERROR;
+	}
 
-	out->temperature_c = BME280_CompensateTemp(dev, raw.raw_temp);
-	out->pressure_pa   = BME280_CompensatePress(dev, raw.raw_press);
-	out->humidity_pct  = BME280_CompensateHum(dev, raw.raw_hum);
+	pData->temperature_c = BME280_CompensateTemp(dev, raw.raw_temp);
+	pData->pressure_pa   = BME280_CompensatePress(dev, raw.raw_press);
+	pData->humidity_pct  = BME280_CompensateHum(dev, raw.raw_hum);
 
 	return HAL_OK;
 } /* BME280_ReadAll() */
