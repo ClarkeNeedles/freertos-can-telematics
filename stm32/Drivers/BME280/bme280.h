@@ -79,59 +79,59 @@ extern "C" {
 
 typedef struct
 {
-	uint8_t osrs_t;
-	uint8_t osrs_p;
-	uint8_t osrs_h;
-	uint8_t mode;
-	uint8_t standby;
-	uint8_t filter;
+    uint8_t osrs_t;
+    uint8_t osrs_p;
+    uint8_t osrs_h;
+    uint8_t mode;
+    uint8_t standby;
+    uint8_t filter;
 } BME280_Config_t;
 
 typedef struct
 {
-	int32_t raw_temp;
-	int32_t raw_press;
-	int32_t raw_hum;
+    int32_t raw_temp;
+    int32_t raw_press;
+    int32_t raw_hum;
 } BME280_RawData_t;
 
 typedef struct
 {
-	float temperature_c;
-	float pressure_pa;
-	float humidity_pct;
+    float temperature_c;
+    float pressure_pa;
+    float humidity_pct;
 } BME280_Data_t;
 
 typedef struct
 {
-	I2C_HandleTypeDef *hi2c;
-	uint8_t address;
+    I2C_HandleTypeDef *hi2c;
+    uint8_t address;
 
-	int32_t t_fine;
+    int32_t t_fine;
 
-	// calibration data (filled at init)
-	struct
-	{
-		uint16_t dig_T1;
-		int16_t  dig_T2;
-		int16_t  dig_T3;
+    // calibration data (filled at init)
+    struct
+    {
+        uint16_t dig_T1;
+        int16_t  dig_T2;
+        int16_t  dig_T3;
 
-		uint16_t dig_P1;
-		int16_t  dig_P2;
-		int16_t  dig_P3;
-		int16_t  dig_P4;
-		int16_t  dig_P5;
-		int16_t  dig_P6;
-		int16_t  dig_P7;
-		int16_t  dig_P8;
-		int16_t  dig_P9;
+        uint16_t dig_P1;
+        int16_t  dig_P2;
+        int16_t  dig_P3;
+        int16_t  dig_P4;
+        int16_t  dig_P5;
+        int16_t  dig_P6;
+        int16_t  dig_P7;
+        int16_t  dig_P8;
+        int16_t  dig_P9;
 
-		uint8_t  dig_H1;
-		int16_t  dig_H2;
-		uint8_t  dig_H3;
-		int16_t  dig_H4;
-		int16_t  dig_H5;
-		int8_t   dig_H6;
-	} calib;
+        uint8_t  dig_H1;
+        int16_t  dig_H2;
+        uint8_t  dig_H3;
+        int16_t  dig_H4;
+        int16_t  dig_H5;
+        int8_t   dig_H6;
+    } calib;
 } BME280_Handle_t;
 
 /*

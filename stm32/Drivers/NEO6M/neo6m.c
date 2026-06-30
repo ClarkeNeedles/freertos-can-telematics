@@ -16,7 +16,7 @@
 
 static uint8_t NEO6M_Validate(char *rx_buffer);
 static void NEO6M_Parse(char *rx_buffer, NEO6M_Data_t *data);
-static float NEO6M_NmeaToDec(float deg_coord, char nsew);
+static float NEO6M_NmeaToDec(float deg_coord, char ns_ew);
  
 /*
  * ============================================================================
@@ -27,30 +27,30 @@ static float NEO6M_NmeaToDec(float deg_coord, char nsew);
 // -----------------------------------------------------------------------------
 HAL_StatusTypeDef NEO6M_Init(NEO6M_Handle_t *dev)
 {
-	// Receive data over UART using interrupts
-	return HAL_UART_Receive_IT(dev->huart, dev->rx_data, 1);
+    // Receive data over UART using interrupts
+    return HAL_UART_Receive_IT(dev->huart, dev->rx_data, 1);
 }
 
 // -----------------------------------------------------------------------------
 HAL_StatusTypeDef NEO6M_UART_CallBack(NEO6M_Handle_t *dev)
 {
-	if ((dev->rx_data != '\n') && (dev->rx_index < GPSBUFSIZE))
-	{
-		dev->rx_buffer[dev->rx_index++] = dev->rx_data; // Move data into buffer
-	}
-	else
-	{
-		if(NEO6M_Validate((char*) dev->rx_buffer))
-		{
-			NEO6M_Parse((char*) dev->rx_buffer, &dev->gps_data);
-		}
+    if ((dev->rx_data != '\n') && (dev->rx_index < GPSBUFSIZE))
+    {
+        dev->rx_buffer[dev->rx_index++] = dev->rx_data; // Move data into buffer
+    }
+    else
+    {
+        if(NEO6M_Validate((char*) dev->rx_buffer))
+        {
+            NEO6M_Parse((char*) dev->rx_buffer, &dev->gps_data);
+        }
 
-		// Reset buffer
-		dev->rx_index = 0;
-		memset(dev->rx_buffer, 0, GPSBUFSIZE);
-	}
+        // Reset buffer
+        dev->rx_index = 0;
+        memset(dev->rx_buffer, 0, GPSBUFSIZE);
+    }
 
-	return HAL_UART_Receive_IT(dev->huart, &dev->rx_data, 1); // Reset the interrupt
+    return HAL_UART_Receive_IT(dev->huart, &dev->rx_data, 1); // Reset the interrupt
 }
 
 /*
@@ -81,7 +81,7 @@ static uint8_t NEO6M_Validate(char *rx_buffer)
     // Ensure that string starts with '$'
     if (rx_buffer[0] != '$')
     {
-    	return 0;
+        return 0;
     }
 
     // Loop until the end of the NMEA string
@@ -99,22 +99,22 @@ static uint8_t NEO6M_Validate(char *rx_buffer)
 
     if (rx_buffer[i] == '*')
     {
-    	// Put hex chars in check string
-    	expected_checksum[0] = rx_buffer[i+1];
-    	expected_checksum[1] = rx_buffer[i+2];
+        // Put hex chars in check string
+        expected_checksum[0] = rx_buffer[i+1];
+        expected_checksum[1] = rx_buffer[i+2];
         expected_checksum[2] = 0;
     }
     else
     {
-    	// No checksum separator found
-    	return 0;
+        // No checksum separator found
+        return 0;
     }
 
     // Convert received checksum to hex for comparison
     sprintf(received_checksum,"%02X",checksum);
 
     return (received_checksum[0] == expected_checksum[0]) &&
-    	   (received_checksum[1] == expected_checksum[1]);
+           (received_checksum[1] == expected_checksum[1]);
 }
 
 /**
@@ -130,38 +130,68 @@ static uint8_t NEO6M_Validate(char *rx_buffer)
  */
 static void NEO6M_Parse(char *rx_buffer, NEO6M_Data_t *data)
 {
+    char local_lat[15] = {0};
+    char local_lon[15] = {0};
+    char ns_val = 0;
+    char ew_val = 0;
+    char status = 'V';
+
     // Defensive pointer guard check
     if (rx_buffer == NULL)
     {
         return;
     }
 
-    if (!strncmp(rx_buffer, "$GPGGA", 6))
+    // We are only using GPRMC
+    if (strncmp(rx_buffer, "$GPRMC", 6) != 0)
     {
-        // Verify that all 10 target variables parsed completely
-        if (sscanf(rx_buffer, 
-                   "$GPGGA,%f,%f,%c,%f,%c,%d,%d,%f,%f,%c",
-                   &data->utc_time, &data->nmea_latitude, &data->ns, 
-                   &data->nmea_longitude, &data->ew, &data->lock, 
-                   &data->satelites, &data->hdop, &data->msl_altitude, 
-                   &data->msl_units) == 10)
-        {
-            // Convert standard NMEA DDMM.MMMM to true Decimal Degrees
-            data->dec_latitude = NEO6M_NmeaToDec(data->nmea_latitude, data->ns);
-            data->dec_longitude = NEO6M_NmeaToDec(data->nmea_longitude, data->ew);
-        }
+        return;
     }
-    else if (!strncmp(rx_buffer, "$GPRMC", 6))
+
+    // Tokenize by comma
+    char *token = strtok(rx_buffer, ",");
+    int field_index = 1;
+    while (token != NULL) 
     {
-        if (sscanf(rx_buffer, 
-                "$GPRMC,%f,%f,%c,%f,%c,%f,%f,%d", 
-                &data->utc_time, &data->nmea_latitude, &data->ns, 
-                &data->nmea_longitude, &data->ew, &data->speed_k, 
-                &data->course_d, &data->date) == 8)
+        // Skip all the fields that are not needed
+        switch(field_index++) 
         {
-            data->dec_latitude = NEO6M_NmeaToDec(data->nmea_latitude, data->ns);
-            data->dec_longitude = NEO6M_NmeaToDec(data->nmea_longitude, data->ew);
+            case 3: // Status: 'A' = Valid Fix, 'V' = Warning/No Fix
+                status = token[0];
+                break;
+            case 4: // Raw Latitude (DDMM.MMMM)
+                strncpy(local_lat, token, sizeof(local_lat) - 1);
+                break;
+            case 5: // N/S Indicator
+                ns_val = token[0];
+                break;
+            case 6: // Raw Longitude (DDDMM.MMMM)
+                strncpy(local_lon, token, sizeof(local_lon) - 1);
+                break;
+            case 7: // E/W Indicator
+                ew_val = token[0];
+                break;
+            default:
+                break;
         }
+        token = strtok(NULL, ",");
+    }
+
+    // Only process coordinates if the GPS module reports a valid active lock
+    if (status == 'A' && local_lat[0] != '\0' && local_lon[0] != '\0') 
+    {
+        // Convert the string representations to float safely via strtof
+        float nmea_latitude = strtof(local_lat, NULL);
+        float nmea_longitude = strtof(local_lon, NULL);
+        
+        // Convert standard NMEA to true Decimal Degrees for your API
+        data->dec_latitude = NEO6M_NmeaToDec(nmea_latitude, ns_val);
+        data->dec_longitude = NEO6M_NmeaToDec(nmea_longitude, ew_val);
+        data->valid_fix = 1; 
+    } 
+    else 
+    {
+        data->valid_fix = 0; // Tell LCD screen to show "No GPS Signal"
     }
 } 
 
