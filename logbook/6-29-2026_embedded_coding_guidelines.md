@@ -27,6 +27,11 @@ Source files must isolate user-facing code from low-level register manipulation:
    2. Public API: Implement global user-facing functions directly beneath the prototypes. Separator lines (// ---) must separate adjacent functions instead of noisy block banners.
    3. Private Implementations: Place local helper operations at the very bottom of the file, preceded by a concise, high-density Doxygen documentation block.
 
+## 1.3 Declaration-to-Definition Ordering (Mirroring Rule)
+To ensure seamless navigability across split-screen workspaces, function implementations inside the source file must strictly follow the same relative order in which they were originally declared.
+* **Public Functions**: Must be defined in the `.c` file in the exact sequential order they appear in the `.h` file's Public API section.
+* **Private Functions**: Must be defined at the bottom of the `.c` file in the exact sequential order they appear in the Private Prototypes list at the top of that same file.
+
 ------------------------------
 # 🏷️ 2. Naming Conventions & Scope
 ## 2.1 Prefix Namespaces
@@ -52,7 +57,7 @@ Braces {} are mandatory for all control flow blocks (if, else, for, while, switc
 The opening brace must always begin on a new line directly underneath the controlling statement, aligned at the same indentation level.
 
 * Correct:
-```
+```c
 if (status != HAL_OK)
 {
     return status;
@@ -60,7 +65,7 @@ if (status != HAL_OK)
 ```
 
 * Incorrect:
-```
+```c
 if (status != HAL_OK) return status; // Missing braces and new line
 if (status != HAL_OK) {              // Brace on same line
     return status;
@@ -72,7 +77,7 @@ To maintain high readability on standard desktop monitors and ensure code prints
 If a statement or function call exceeds 80 characters, wrap it cleanly onto the next line using a 4-space hanging indentation.
 
 * Correct (Wrapped Parameter Lists):
-```
+```c
 status = HAL_I2C_Mem_Write(
     dev->hi2c, 
     dev->address, 
@@ -84,12 +89,35 @@ status = HAL_I2C_Mem_Write(
 );
 ```
 * Correct (Wrapped Conditional Logic):
-```
+```c
 if (BME280_CheckID(dev) != HAL_OK ||
     BME280_Reset(dev) != HAL_OK)
 {
     return HAL_ERROR; 
 }
+```
+
+## 3.3 Horizontal and Vertical Balance (Over-Verticalization Guard)
+Avoid making functions overly vertical. If a multiline statement fits within the 80-character horizontal limit without wrapping, do not force parameters onto single lines. When splitting statements becomes necessary due to the 80-character limit, group related parameters logically on the same line to maintain short vertical height.
+
+* Correct (Balanced Grouping - Stays under 80 chars, preserves vertical space):
+```c
+status = HAL_I2C_Mem_Read(dev->hi2c, dev->address, 
+                          BME280_REG_PRESS_MSB, I2C_MEMADD_SIZE_8BIT, 
+                          &data, 8, HAL_MAX_DELAY);
+```
+
+* Discouraged (Excessively Vertical - Wastes screen space for no functional reason):
+```c
+status = HAL_I2C_Mem_Read(
+    dev->hi2c, 
+    dev->address, 
+    BME280_REG_PRESS_MSB, 
+    I2C_MEMADD_SIZE_8BIT, 
+    &data, 
+    8, 
+    HAL_MAX_DELAY
+);
 ```
 
 ------------------------------
@@ -101,7 +129,7 @@ Inline comments must explain why something is done, not what is done. Assume the
 * `Good: count++; // Accounts for the mandatory start-frame byte delimiter`
 
 For multi-step mathematical calculations (like the Bosch BME280 compensation formulas) or hardware quirks, place a short descriptive text block directly above the code to map the implementation to its physical or mathematical theory:
-```
+```c
 // Step 1: Calculate the intermediate fine-temperature variable (t_fine).
 // This value anchors the sensor's thermal baseline and is a hard mathematical
 // prerequisite for running subsequent pressure and humidity calculations.

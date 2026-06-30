@@ -23,6 +23,7 @@ static void ILI9341_SetAddressWindow(ILI9341_Handle_t *dev, uint16_t x0, uint16_
  * ============================================================================
  */
 
+// -----------------------------------------------------------------------------
 void ILI9341_Init(ILI9341_Handle_t *dev)
 {
     // 1. Perform Hardware Reset if reset pins are designated
@@ -118,6 +119,7 @@ void ILI9341_Init(ILI9341_Handle_t *dev)
     ILI9341_Write(dev, ILI9341_REG_DISPON, ILI9341_COMMAND);
 }
 
+// -----------------------------------------------------------------------------
 void ILI9341_FillRectangle(ILI9341_Handle_t *dev, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color_rgb565)
 {
     // Defensive clipping checks
@@ -152,6 +154,7 @@ void ILI9341_FillRectangle(ILI9341_Handle_t *dev, uint16_t x, uint16_t y, uint16
     HAL_GPIO_WritePin(dev->cs_port, dev->cs_pin, GPIO_PIN_SET);
 }
 
+// -----------------------------------------------------------------------------
 void ILI9341_DrawPixel(ILI9341_Handle_t *dev, uint16_t x, uint16_t y, uint16_t color_rgb565)
 {
     if ((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT)) 

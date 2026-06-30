@@ -6,24 +6,33 @@
   ******************************************************************************
   */
 
-#include <stdio.h>
-#include <string.h>
-#include <usart.h>
 #include "neo6m.h"
 
-/*******************************************************************************
- NEO6M_Init()
- ******************************************************************************/
-void NEO6M_Init(NEO6M_Handle_t *dev)
+/*
+ * ============================================================================
+ *                  ##### PRIVATE FUNCTION PROTOTYPES  #####
+ * ============================================================================
+ */
+
+static uint8_t NEO6M_Validate(char *rx_buffer);
+static void NEO6M_Parse(char *rx_buffer, NEO6M_Data_t *data);
+static float NEO6M_NmeaToDec(float deg_coord, char nsew);
+ 
+/*
+ * ============================================================================
+ *                     	   ##### PUBLIC API #####
+ * ============================================================================
+ */
+
+// -----------------------------------------------------------------------------
+HAL_StatusTypeDef NEO6M_Init(NEO6M_Handle_t *dev)
 {
 	// Receive data over UART using interrupts
-	HAL_UART_Receive_IT(dev->huart, dev->rx_data, 1);
-} /* NEO6M_Init() */
+	return HAL_UART_Receive_IT(dev->huart, dev->rx_data, 1);
+}
 
-/*******************************************************************************
- NEO6M_UART_CallBack()
- ******************************************************************************/
-void NEO6M_UART_CallBack(NEO6M_Handle_t *dev)
+// -----------------------------------------------------------------------------
+HAL_StatusTypeDef NEO6M_UART_CallBack(NEO6M_Handle_t *dev)
 {
 	if ((dev->rx_data != '\n') && (dev->rx_index < GPSBUFSIZE))
 	{
@@ -33,7 +42,7 @@ void NEO6M_UART_CallBack(NEO6M_Handle_t *dev)
 	{
 		if(NEO6M_Validate((char*) dev->rx_buffer))
 		{
-			NEO6M_Parse((char*) dev->rx_buffer);
+			NEO6M_Parse((char*) dev->rx_buffer, &dev->gps_data);
 		}
 
 		// Reset buffer
@@ -41,11 +50,29 @@ void NEO6M_UART_CallBack(NEO6M_Handle_t *dev)
 		memset(dev->rx_buffer, 0, GPSBUFSIZE);
 	}
 
-	HAL_UART_Receive_IT(dev->huart, &dev->rx_data, 1); // Reset the interrupt
-} /*  NEO6M_UART_CallBack() */
+	return HAL_UART_Receive_IT(dev->huart, &dev->rx_data, 1); // Reset the interrupt
+}
 
+/*
+ * ============================================================================
+ *                ##### PRIVATE FUNCTION IMPLEMENTATIONS #####
+ * ============================================================================
+ */
 
-uint8_t NEO6M_Validate(char *rx_buffer)
+/**
+ * @brief  Validates the integrity of an NMEA sentence using its trailing checksum.
+ * @note   Internal utility; computes the XOR hash of all characters between '$' and '*'.
+ *
+ * This function walks the incoming raw character string buffer, validating the starting 
+ * delimiter and parsing up to the payload end-marker. It extracts the raw two-character 
+ * hexadecimal validation suffix, computes an internal running XOR checksum verification 
+ * frame, and evaluates parity matching.
+ *
+ * @param[in] rx_buffer Pointer to the null-terminated NMEA sentence array.
+ * @retval 1            Sentence is valid; computed checksum matches received suffix.
+ * @retval 0            Validation failed due to bad checksum, size overrun, or missing tokens.
+ */
+static uint8_t NEO6M_Validate(char *rx_buffer)
 {
     char expected_checksum[3];
     char received_checksum[3];
@@ -90,49 +117,78 @@ uint8_t NEO6M_Validate(char *rx_buffer)
     	   (received_checksum[1] == expected_checksum[1]);
 }
 
-void NEO6M_Parse(char *rx_buffer){
-    if(!strncmp(rx_buffer, "$GPGGA", 6))
+/**
+ * @brief  Parses raw NMEA strings and extracts active telemetry fields.
+ * @note   Internal utility; targets and extracts parameters from GGA and RMC fields.
+ *
+ * This function utilizes strict string format scanning to strip raw text tokens 
+ * from verified sentences. It extracts time configurations, sat links, fixes, and 
+ * speeds, before running coordinate normalization conversions to map raw values 
+ * into decimal degrees.
+ *
+ * @param[in,out] rx_buffer Pointer to the verified, null-terminated character string.
+ */
+static void NEO6M_Parse(char *rx_buffer, NEO6M_Data_t *data)
+{
+    // Defensive pointer guard check
+    if (rx_buffer == NULL)
     {
-    	if (sscanf(rx_buffer,
-    			   "$GPGGA,%f,%f,%c,%f,%c,%d,%d,%f,%f,%c",
-				   &GPS.utc_time, &GPS.nmea_latitude,
-				   &GPS.ns, &GPS.nmea_longitude,
-				   &GPS.ew,
-				   &GPS.lock,
-				   &GPS.satelites,
-				   &GPS.hdop,
-				   &GPS.msl_altitude,
-				   &GPS.msl_units) >= 1)
-    	{
-    		GPS.dec_latitude = GPS_nmea_to_dec(GPS.nmea_latitude, GPS.ns);
-    		GPS.dec_longitude = GPS_nmea_to_dec(GPS.nmea_longitude, GPS.ew);
-    	}
+        return;
     }
-    else if (!strncmp(GPSstrParse, "$GPRMC", 6))
-    {
-    	if(sscanf(GPSstrParse, "$GPRMC,%f,%f,%c,%f,%c,%f,%f,%d", &GPS.utc_time, &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.speed_k, &GPS.course_d, &GPS.date) >= 1)
-    		return;
 
-    }
-    else if (!strncmp(GPSstrParse, "$GPGLL", 6))
+    if (!strncmp(rx_buffer, "$GPGGA", 6))
     {
-        if(sscanf(GPSstrParse, "$GPGLL,%f,%c,%f,%c,%f,%c", &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.utc_time, &GPS.gll_status) >= 1)
-            return;
+        // Verify that all 10 target variables parsed completely
+        if (sscanf(rx_buffer, 
+                   "$GPGGA,%f,%f,%c,%f,%c,%d,%d,%f,%f,%c",
+                   &data->utc_time, &data->nmea_latitude, &data->ns, 
+                   &data->nmea_longitude, &data->ew, &data->lock, 
+                   &data->satelites, &data->hdop, &data->msl_altitude, 
+                   &data->msl_units) == 10)
+        {
+            // Convert standard NMEA DDMM.MMMM to true Decimal Degrees
+            data->dec_latitude = NEO6M_NmeaToDec(data->nmea_latitude, data->ns);
+            data->dec_longitude = NEO6M_NmeaToDec(data->nmea_longitude, data->ew);
+        }
     }
-    else if (!strncmp(GPSstrParse, "$GPVTG", 6))
+    else if (!strncmp(rx_buffer, "$GPRMC", 6))
     {
-        if(sscanf(GPSstrParse, "$GPVTG,%f,%c,%f,%c,%f,%c,%f,%c", &GPS.course_t, &GPS.course_t_unit, &GPS.course_m, &GPS.course_m_unit, &GPS.speed_k, &GPS.speed_k_unit, &GPS.speed_km, &GPS.speed_km_unit) >= 1)
-            return;
+        if (sscanf(rx_buffer, 
+                "$GPRMC,%f,%f,%c,%f,%c,%f,%f,%d", 
+                &data->utc_time, &data->nmea_latitude, &data->ns, 
+                &data->nmea_longitude, &data->ew, &data->speed_k, 
+                &data->course_d, &data->date) == 8)
+        {
+            data->dec_latitude = NEO6M_NmeaToDec(data->nmea_latitude, data->ns);
+            data->dec_longitude = NEO6M_NmeaToDec(data->nmea_longitude, data->ew);
+        }
     }
-}
+} 
 
-float GPS_nmea_to_dec(float deg_coord, char nsew) {
-    int degree = (int)(deg_coord/100);
-    float minutes = deg_coord - degree*100;
+/**
+ * @brief  Converts standard NMEA DDMM.MMMM format coordinates to decimal degrees.
+ * @note   Internal math helper utility used exclusively within this file.
+ *
+ * This function extracts the raw degree integer from the NMEA scalar, scales the 
+ * remaining minutes fractional component into base-64 decimal arcs, and applies 
+ * a negative polarity inversion if a Southern ('S') or Western ('W') cardinal 
+ * vector is detected.
+ *
+ * @param[in] deg_coord Raw coordinate scalar read directly from the NMEA packet stream.
+ * @param[in] ns_ew     Cardinal direction indicator character ('N', 'S', 'E', or 'W').
+ * @return              The final calibrated coordinate position in true Decimal Degrees.
+ */
+static float NEO6M_NmeaToDec(float deg_coord, char ns_ew) 
+{
+    int degree = (int)(deg_coord / 100);
+    float minutes = deg_coord - degree * 100;
     float dec_deg = minutes / 60;
     float decimal = degree + dec_deg;
-    if (nsew == 'S' || nsew == 'W') { // return negative
-        decimal *= -1;
+
+    if (ns_ew == 'S' || ns_ew == 'W') 
+    { 
+        decimal *= -1; // return negative
     }
+
     return decimal;
 }
