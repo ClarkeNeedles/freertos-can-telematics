@@ -24,7 +24,7 @@ The system splits firmware execution into two independent loops to balance crisp
 ├─────────────────────────────────┤   ├─────────────────────────────────┤
 │ • Frequency: Every 500ms        │   │ • Frequency: Every 5-15 minutes │
 │ • Priority: Normal (Higher)     │   │ • Priority: Low                 │
-│ • Read BME280 (I2C)   	  │   │ • TX GPS via CAN                │
+│ • Read BME280 (I2C)   	  	  │   │ • TX GPS via CAN                │
 │ • Drive LCD Screen instantly    │   │ • RX Packed Weather             │
 └─────────────────────────────────┘   └─────────────────────────────────┘
 ```
