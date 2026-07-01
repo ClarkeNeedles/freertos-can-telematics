@@ -6,8 +6,8 @@
   ******************************************************************************
   */
 
-#ifndef __BME280_H
-#define __BME280_H
+#ifndef BME280_H
+#define BME280_H
 
 #include "stm32f4xx_hal.h"
 #include <stdint.h>
@@ -65,17 +65,27 @@ extern "C" {
 #define BME280_REG_CTRL_MEAS   0xF4
 #define BME280_REG_CONFIG      0xF5
 
-#define BME280_REG_PRESS_MSB   0xF7  // burst read start
+#define BME280_REG_PRESS_MSB   0xF7  // Burst read start
 #define BME280_REG_TEMP_MSB    0xFA
 #define BME280_REG_HUM_MSB     0xFD
 
 #define BME280_CHIP_ID         0x60
+
+#define BME280_ADDRESS 0xEC // Address determined by SDO pin
 
 /*
  * ============================================================================
  *                     	  ##### TYPE DEFINITIONS #####
  * ============================================================================
  */
+
+typedef enum
+{
+    BME280_OK          = 0,  // Operation completed successfully.
+    BME280_ERR_I2C     = 1,  // Physical bus communication failure (I2C NACK or timeout).
+    BME280_ERR_ID      = 2,  // Device ID mismatch (Chip is not a BME280).
+    BME280_ERR_RESET   = 3   // Sensor soft-reset failed or timed out.
+} BME280_Status_t;
 
 typedef struct
 {
@@ -108,7 +118,7 @@ typedef struct
 
     int32_t t_fine;
 
-    // calibration data (filled at init)
+    // Calibration data (filled at init)
     struct
     {
         uint16_t dig_T1;
@@ -155,116 +165,70 @@ typedef struct
  * @param[in,out] dev Pointer to the BME280 device handle containing I2C details.
  * @param[in]     cfg Pointer to the configuration structure holding sensor settings.
  *
- * @retval HAL_OK    Sensor successfully initialized and configured.
- * @retval HAL_ERROR Device verification failed, reset timed out, or I2C communication errored.
+ * @retval BME280_OK        Sensor successfully initialized and configured.
+ * @retval BME280_ERR_ID    Device chip ID verification failed.
+ * @retval BME280_ERR_RESET Sensor software reset sequence timed out or failed.
+ * @retval BME280_ERR_I2C   Physical I2C bus communications failed.
  ******************************************************************************/
-HAL_StatusTypeDef BME280_Init(BME280_Handle_t *dev, BME280_Config_t *cfg);
+BME280_Status_t BME280_Init(BME280_Handle_t *dev, BME280_Config_t *cfg);
 
 /*******************************************************************************
- * @brief Places the BME280 sensor into sleep mode.
+ * @brief Places the BME280 sensor into a low-power sleep state.
  *
- * This function switches the sensor's power mode to sleep by writing to the
- * control measurement register. In sleep mode, no measurements are performed 
- * and power consumption is minimized to its lowest state.
- *
- * @warning Writing directly to @c BME280_REG_CTRL_MEAS with this value will overwrite 
- *          and clear the temperature and pressure oversampling settings. If you intend 
- *          to preserve those configurations, consider a read-modify-write operation instead.
- *
- * @param[in] dev Pointer to the BME280 device handle containing I2C details.
- *
- * @retval HAL_OK    The sensor successfully entered sleep mode.
- * @retval HAL_ERROR The I2C write transaction failed.
+ * @param[in,out] dev Pointer to the BME280 device handle.
+ * @retval BME280_OK      Device entered sleep mode successfully.
+ * @retval BME280_ERR_I2C Physical I2C bus communications failed.
  ******************************************************************************/
-HAL_StatusTypeDef BME280_Sleep(BME280_Handle_t *dev);
+BME280_Status_t BME280_Sleep(BME280_Handle_t *dev);
 
 /*******************************************************************************
- * @brief Wakes up the BME280 sensor by forcing a measurement.
+ * @brief Wakes up the sensor by putting it into forced measurement mode.
  *
- * This function reads the current control measurement register, modifies the mode 
- * bits to set the sensor into forced mode (@c BME280_MODE_FORCED), and writes it back. 
- * This safely switches the sensor out of sleep mode while preserving any existing 
- * temperature and pressure oversampling configurations.
- *
- * @note In forced mode, the sensor performs a single measurement sequence according 
- *       to the selected oversampling settings and then automatically returns to sleep mode.
- *
- * @param[in] dev Pointer to the BME280 device handle containing I2C details.
- *
- * @retval HAL_OK    The sensor was successfully switched to forced measurement mode.
- * @retval HAL_ERROR The I2C read or write transaction failed.
+ * @param[in,out] dev Pointer to the BME280 device handle.
+ * @retval BME280_OK      Device forced measurement mode triggered.
+ * @retval BME280_ERR_I2C Physical I2C bus communications failed.
  ******************************************************************************/
-HAL_StatusTypeDef BME280_Wakeup(BME280_Handle_t *dev);
+BME280_Status_t BME280_Wakeup(BME280_Handle_t *dev);
 
 /*******************************************************************************
- * @brief Reads the current temperature from the sensor.
+ * @brief Reads and calculates the compensated temperature.
  *
- * This function triggers a fresh raw burst read from the sensor, extracts the
- * raw temperature ADC value, and processes it using the internal compensation math.
- * It also populates the intermediate @c t_fine variable inside the device handle.
- *
- * @param[in,out] dev  Pointer to the BME280 device handle where @c t_fine will be updated.
- * @param[out]    pData Pointer to the floating-point variable where the temperature (°C) will be stored.
- *
- * @retval HAL_OK    The temperature was successfully read and compensated.
- * @retval HAL_ERROR The underlying I2C raw read transaction failed.
+ * @param[in,out] dev   Pointer to the BME280 device handle.
+ * @param[out]    pData Pointer to float destination container.
+ * @retval BME280_OK    Temperature successfully captured.
+ * @retval BME280_ERR_I2C Physical I2C bus communications failed.
  ******************************************************************************/
-HAL_StatusTypeDef BME280_ReadTemperature(BME280_Handle_t *dev, float *pData);
+BME280_Status_t BME280_ReadTemperature(BME280_Handle_t *dev, float *pData);
 
 /*******************************************************************************
- * @brief Reads the current barometric pressure from the sensor.
+ * @brief Reads and calculates the compensated barometric pressure.
  *
- * This function captures a raw burst read from the device, calculates the updated
- * temperature to refresh the internal @c t_fine variable, and applies the mathematical 
- * compensation formulas to evaluate the true atmospheric pressure.
- *
- * @note Because pressure compensation directly relies on temperature calculations, this 
- *       function implicitly calculates and refreshes the device's internal temperature calibration state.
- *
- * @param[in,out] dev   Pointer to the BME280 device handle where @c t_fine will be updated.
- * @param[out]    pData Pointer to the floating-point variable where the pressure (Pa) will be stored.
- *
- * @retval HAL_OK    The pressure was successfully read and compensated.
- * @retval HAL_ERROR The underlying I2C raw read transaction failed.
+ * @param[in,out] dev   Pointer to the BME280 device handle.
+ * @param[out]    pData Pointer to float destination container.
+ * @retval BME280_OK    Pressure successfully captured.
+ * @retval BME280_ERR_I2C Physical I2C bus communications failed.
  ******************************************************************************/
-HAL_StatusTypeDef BME280_ReadPressure(BME280_Handle_t *dev, float *pData);
+BME280_Status_t BME280_ReadPressure(BME280_Handle_t *dev, float *pData);
 
 /*******************************************************************************
- * @brief Reads the current relative humidity from the sensor.
+ * @brief Reads and calculates the compensated relative humidity percentage.
  *
- * This function gathers a raw burst read from the device, calculates the updated 
- * temperature to refresh the internal @c t_fine variable, and applies the calibration 
- * coefficients to evaluate the relative humidity percentage.
- *
- * @note Because humidity compensation directly relies on temperature calculations, this 
- *       function implicitly calculates and refreshes the device's internal temperature calibration state.
- *
- * @param[in,out] dev Pointer to the BME280 device handle where @c t_fine will be updated.
- * @param[out]    pData Pointer to the floating-point variable where the humidity (%RH) will be stored.
- *
- * @retval HAL_OK    The humidity was successfully read and compensated.
- * @retval HAL_ERROR The underlying I2C raw read transaction failed.
+ * @param[in,out] dev   Pointer to the BME280 device handle.
+ * @param[out]    pData Pointer to float destination container.
+ * @retval BME280_OK    Humidity successfully captured.
+ * @retval BME280_ERR_I2C Physical I2C bus communications failed.
  ******************************************************************************/
-HAL_StatusTypeDef BME280_ReadHumidity(BME280_Handle_t *dev, float *pData);
+BME280_Status_t BME280_ReadHumidity(BME280_Handle_t *dev, float *pData);
 
 /*******************************************************************************
- * @brief Reads all environmental measurements (Temperature, Pressure, Humidity) simultaneously.
+ * @brief Reads and updates all three sensor parameters simultaneously.
  *
- * This is the preferred, high-efficiency function for collecting complete environmental datasets. 
- * It issues a single, unified 8-byte I2C burst read to capture all physical values from a single 
- * sample frame. It then executes the temperature math first to properly cache @c t_fine, before safely 
- * executing the sequential pressure and humidity compensation pipelines.
- *
- * @note Using this function is faster and more resource-efficient than calling individual 
- *       read functions sequentially, as it removes redundant I2C transactional overhead.
- *
- * @param[in,out] dev Pointer to the BME280 device handle where @c t_fine will be updated.
- * @param[out]    pData Pointer to the output structure where all physical data readings will be saved.
- *
- * @retval HAL_OK    All measurements were successfully pulled, calculated, and stored.
- * @retval HAL_ERROR The underlying I2C raw read transaction failed.
+ * @param[in,out] dev   Pointer to the BME280 device handle.
+ * @param[out]    pData Pointer to the collective telemetry struct container.
+ * @retval BME280_OK    All telemetry metrics successfully captured.
+ * @retval BME280_ERR_I2C Physical I2C bus communications failed.
  ******************************************************************************/
-HAL_StatusTypeDef BME280_ReadAll(BME280_Handle_t *dev, BME280_Data_t *pData);
+BME280_Status_t BME280_ReadAll(BME280_Handle_t *dev, BME280_Data_t *pData);
 
 #ifdef __cplusplus
 }

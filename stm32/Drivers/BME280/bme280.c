@@ -17,10 +17,10 @@
 static float BME280_CompensateTemp(BME280_Handle_t *dev, int32_t adc_T);
 static float BME280_CompensatePress(BME280_Handle_t *dev, int32_t adc_P);
 static float BME280_CompensateHum(BME280_Handle_t *dev, int32_t adc_H);
-HAL_StatusTypeDef BME280_CheckID(BME280_Handle_t *dev);
-HAL_StatusTypeDef BME280_Reset(BME280_Handle_t *dev);
-HAL_StatusTypeDef BME280_ReadRaw(BME280_Handle_t *dev, BME280_RawData_t *pData);
-HAL_StatusTypeDef BME280_ReadCalibration(BME280_Handle_t *dev);
+static BME280_Status_t BME280_CheckID(BME280_Handle_t *dev);
+static BME280_Status_t BME280_Reset(BME280_Handle_t *dev);
+static BME280_Status_t BME280_ReadRaw(BME280_Handle_t *dev, BME280_RawData_t *pData);
+static BME280_Status_t BME280_ReadCalibration(BME280_Handle_t *dev);
 
 /*
  * ============================================================================
@@ -29,138 +29,152 @@ HAL_StatusTypeDef BME280_ReadCalibration(BME280_Handle_t *dev);
  */
 
 // -----------------------------------------------------------------------------
-HAL_StatusTypeDef BME280_Init(BME280_Handle_t *dev, BME280_Config_t *cfg)
+BME280_Status_t BME280_Init(BME280_Handle_t *dev, BME280_Config_t *cfg)
 {
-    HAL_StatusTypeDef status;
+    BME280_Status_t status;
 
-    if (BME280_CheckID(dev) != HAL_OK ||
-        BME280_Reset(dev) != HAL_OK ||
-        BME280_ReadCalibration(dev) != HAL_OK)
+    status = BME280_CheckID(dev);
+    if (status != BME280_OK)
     {
-        return HAL_ERROR;	
+        return status;
+    }
+
+    status = BME280_Reset(dev);
+    if (status != BME280_OK)
+    {
+        return status;
+    }
+
+    status = BME280_ReadCalibration(dev);
+    if (status != BME280_OK)
+    {
+        return status;
     }
 
     // Humidity oversampling must be set first
-    status = HAL_I2C_Mem_Write(dev->hi2c, dev->address, 
-                               BME280_REG_CTRL_HUM, I2C_MEMADD_SIZE_8BIT, 
-                               &cfg->osrs_h, 1, HAL_MAX_DELAY);
-
-    if (status != HAL_OK)
+    if (HAL_I2C_Mem_Write(dev->hi2c, dev->address,
+            BME280_REG_CTRL_HUM, I2C_MEMADD_SIZE_8BIT,
+            &cfg->osrs_h, 1, HAL_MAX_DELAY) != HAL_OK)
     {
-        return status;
+        return BME280_ERR_I2C;
     }
 
     // Config register
     uint8_t config = (cfg->standby << 5) | (cfg->filter << 2);
-    status = HAL_I2C_Mem_Write(dev->hi2c, dev->address, 
-                               BME280_REG_CONFIG, I2C_MEMADD_SIZE_8BIT, 
-                               &config, 1, HAL_MAX_DELAY);
-
-    if (status != HAL_OK)
+    if (HAL_I2C_Mem_Write(dev->hi2c, dev->address,
+            BME280_REG_CONFIG, I2C_MEMADD_SIZE_8BIT,
+            &config, 1, HAL_MAX_DELAY) != HAL_OK)
     {
-        return status;
+        return BME280_ERR_I2C;
     }
 
     // Control measurement register
     uint8_t ctrl_meas = (cfg->osrs_t << 5) | (cfg->osrs_p << 2) | (cfg->mode);
-    status = HAL_I2C_Mem_Write(dev->hi2c, dev->address, 
-                               BME280_REG_CTRL_MEAS, I2C_MEMADD_SIZE_8BIT, 
-                               &ctrl_meas, 1, HAL_MAX_DELAY);
-
-    if (status != HAL_OK)
+    if (HAL_I2C_Mem_Write(dev->hi2c, dev->address,
+            BME280_REG_CTRL_MEAS, I2C_MEMADD_SIZE_8BIT,
+            &ctrl_meas, 1, HAL_MAX_DELAY) != HAL_OK)
     {
-        return status;
+        return BME280_ERR_I2C;
     }
 
-    return HAL_OK;
+    return BME280_OK;
 }
 
 // -----------------------------------------------------------------------------
-HAL_StatusTypeDef BME280_Sleep(BME280_Handle_t *dev)
+BME280_Status_t BME280_Sleep(BME280_Handle_t *dev)
 { 
-    return HAL_I2C_Mem_Write(dev->hi2c, dev->address, 
-                             BME280_REG_CTRL_MEAS, I2C_MEMADD_SIZE_8BIT, 
-                             (uint8_t *)BME280_MODE_SLEEP, 1, HAL_MAX_DELAY);
+    uint8_t mode = BME280_MODE_SLEEP;
+
+    if (HAL_I2C_Mem_Write(dev->hi2c, dev->address,
+                          BME280_REG_CTRL_MEAS, I2C_MEMADD_SIZE_8BIT,
+                          &mode, 1, HAL_MAX_DELAY) != HAL_OK)
+    {
+        return BME280_ERR_I2C;
+    }
+
+    return BME280_OK;
 }
 
 // -----------------------------------------------------------------------------
-HAL_StatusTypeDef BME280_Wakeup(BME280_Handle_t *dev)
+BME280_Status_t BME280_Wakeup(BME280_Handle_t *dev)
 {
     uint8_t ctrl;
-    HAL_StatusTypeDef status;
 
-    status = HAL_I2C_Mem_Read(dev->hi2c, dev->address, 
-                              BME280_REG_CTRL_MEAS, I2C_MEMADD_SIZE_8BIT, 
-                              &ctrl, 1, HAL_MAX_DELAY);
-
-    if (status != HAL_OK)
+    if (HAL_I2C_Mem_Read(dev->hi2c, dev->address,
+            BME280_REG_CTRL_MEAS, I2C_MEMADD_SIZE_8BIT,
+            &ctrl, 1, HAL_MAX_DELAY) != HAL_OK)
     {
-        return status;
+        return BME280_ERR_I2C;
     }
 
     ctrl |= BME280_MODE_FORCED;
 
-    return HAL_I2C_Mem_Write(dev->hi2c, dev->address, 
-                             BME280_REG_CTRL_MEAS, I2C_MEMADD_SIZE_8BIT, 
-                             &ctrl, 1, HAL_MAX_DELAY);
+    if (HAL_I2C_Mem_Write(dev->hi2c, dev->address,
+                            BME280_REG_CTRL_MEAS, I2C_MEMADD_SIZE_8BIT,
+                            &ctrl, 1, HAL_MAX_DELAY) != HAL_OK)
+    {
+        return BME280_ERR_I2C;
+    }
+
+    return BME280_OK;
 }
 
 // -----------------------------------------------------------------------------
-HAL_StatusTypeDef BME280_ReadTemperature(BME280_Handle_t *dev, float *pData)
+BME280_Status_t BME280_ReadTemperature(BME280_Handle_t *dev, float *pData)
 {
     BME280_RawData_t raw;
-    if (BME280_ReadRaw(dev, &raw) != HAL_OK)
+    if (BME280_ReadRaw(dev, &raw) != BME280_OK)
     {
-        return HAL_ERROR;
+        return BME280_ERR_I2C;
     }
 
     *pData = BME280_CompensateTemp(dev, raw.raw_temp);
 
-    return HAL_OK;
+    return BME280_OK;
 }
 
 // -----------------------------------------------------------------------------
-HAL_StatusTypeDef BME280_ReadPressure(BME280_Handle_t *dev, float *pData)
+BME280_Status_t BME280_ReadPressure(BME280_Handle_t *dev, float *pData)
 {
     BME280_RawData_t raw;
-    if (BME280_ReadRaw(dev, &raw) != HAL_OK)
+    if (BME280_ReadRaw(dev, &raw) != BME280_OK)
     {
-        return HAL_ERROR;
+        return BME280_ERR_I2C;
     }
 
     *pData = BME280_CompensatePress(dev, raw.raw_press);
 
-    return HAL_OK;
+    return BME280_OK;
 }
 
 // -----------------------------------------------------------------------------
-HAL_StatusTypeDef BME280_ReadHumidity(BME280_Handle_t *dev, float *pData)
+BME280_Status_t BME280_ReadHumidity(BME280_Handle_t *dev, float *pData)
 {
     BME280_RawData_t raw;
-    if (BME280_ReadRaw(dev, &raw) != HAL_OK)
+    if (BME280_ReadRaw(dev, &raw) != BME280_OK)
     {
-        return HAL_ERROR;
+        return BME280_ERR_I2C;
     }
 
     *pData = BME280_CompensateHum(dev, raw.raw_hum);
 
-    return HAL_OK;
+    return BME280_OK;
 }
 
 // -----------------------------------------------------------------------------
-HAL_StatusTypeDef BME280_ReadAll(BME280_Handle_t *dev, BME280_Data_t *pData)
+BME280_Status_t BME280_ReadAll(BME280_Handle_t *dev, BME280_Data_t *pData)
 {
     BME280_RawData_t raw;
-    if (BME280_ReadRaw(dev, &raw) != HAL_OK)
+    if (BME280_ReadRaw(dev, &raw) != BME280_OK)
     {
-        return HAL_ERROR;
+        return BME280_ERR_I2C;
     }
 
     pData->temperature_c = BME280_CompensateTemp(dev, raw.raw_temp);
     pData->pressure_pa   = BME280_CompensatePress(dev, raw.raw_press);
     pData->humidity_pct  = BME280_CompensateHum(dev, raw.raw_hum);
 
-    return HAL_OK;
+    return BME280_OK;
 }
 
 /*
@@ -287,26 +301,24 @@ static float BME280_CompensateHum(BME280_Handle_t *dev, int32_t adc_H)
  *
  * @param[in] dev Pointer to the BME280 device handle containing I2C details.
  *
- * @retval HAL_OK    The sensor was successfully identified and matches the expected chip ID.
- * @retval HAL_ERROR The I2C read transaction failed, or the retrieved ID does not match.
+ * @retval BME280_OK The sensor was successfully identified and matches the expected chip ID.
+ * @retval BME280_ERR_I2C The I2C read transaction failed, or the retrieved ID does not match.
+ * @retval BME280_ERR_ID The chip id was not correct
  ******************************************************************************/
-HAL_StatusTypeDef BME280_CheckID(BME280_Handle_t *dev)
+static BME280_Status_t BME280_CheckID(BME280_Handle_t *dev)
 {
     uint8_t id = 0;
-    HAL_StatusTypeDef status;
 
-    status = HAL_I2C_Mem_Read(dev->hi2c, dev->address, 
-                              BME280_REG_ID, I2C_MEMADD_SIZE_8BIT, 
-                              &id, 1, HAL_MAX_DELAY);
-
-    if (status != HAL_OK)
+    if (HAL_I2C_Mem_Read(dev->hi2c, dev->address,
+            BME280_REG_ID, I2C_MEMADD_SIZE_8BIT,
+            &id, 1, HAL_MAX_DELAY) != HAL_OK)
     {
-        return status;
+        return BME280_ERR_I2C;
     }
 
     if (id != BME280_CHIP_ID)
     {
-        return HAL_ERROR;
+        return BME280_ERR_ID;
     }
 
     return HAL_OK;
@@ -325,20 +337,16 @@ HAL_StatusTypeDef BME280_CheckID(BME280_Handle_t *dev)
  *
  * @param[in] dev Pointer to the BME280 device handle containing I2C details.
  *
- * @retval HAL_OK    The reset command was successfully sent and the startup delay has expired.
- * @retval HAL_ERROR The I2C write transaction failed.
+ * @retval BME280_OK    The reset command was successfully sent and the startup delay has expired.
+ * @retval BME280_ERR_I2C The I2C write transaction failed.
  ******************************************************************************/
-HAL_StatusTypeDef BME280_Reset(BME280_Handle_t *dev)
+static BME280_Status_t BME280_Reset(BME280_Handle_t *dev)
 {
-    HAL_StatusTypeDef status;
-
-    status = HAL_I2C_Mem_Write(dev->hi2c, dev->address, 
-                               BME280_REG_RESET, I2C_MEMADD_SIZE_8BIT, 
-                               (uint8_t *)0xB6, 1, HAL_MAX_DELAY);
-
-    if (status != HAL_OK)
+    if (HAL_I2C_Mem_Write(dev->hi2c, dev->address,
+            BME280_REG_RESET, I2C_MEMADD_SIZE_8BIT,
+            (uint8_t *)0xB6, 1, HAL_MAX_DELAY) != HAL_OK)
     {
-        return status;
+        return BME280_ERR_I2C;
     }
 
     HAL_Delay(100);
@@ -359,33 +367,25 @@ HAL_StatusTypeDef BME280_Reset(BME280_Handle_t *dev)
  * @param[in]  dev Pointer to the BME280 device handle containing I2C details.
  * @param[out] pData Pointer to the output structure where the raw ADC values will be stored.
  *
- * @retval HAL_OK    The device was verified and the raw data was successfully read and parsed.
- * @retval HAL_ERROR The device ID check failed, or the I2C burst read transaction failed.
+ * @retval BME280_OK The device was verified and the raw data was successfully read and parsed.
+ * @retval BME280_ERR_I2C The device ID check failed, or the I2C burst read transaction failed.
  ******************************************************************************/
-HAL_StatusTypeDef BME280_ReadRaw(BME280_Handle_t *dev, BME280_RawData_t *pData)
+static BME280_Status_t BME280_ReadRaw(BME280_Handle_t *dev, BME280_RawData_t *pData)
 {
     uint8_t data[8];
-    HAL_StatusTypeDef status;
 
-    if (BME280_CheckID(dev) != HAL_OK)
+    if (HAL_I2C_Mem_Read(dev->hi2c, dev->address,
+            BME280_REG_PRESS_MSB, I2C_MEMADD_SIZE_8BIT,
+            data, 8, HAL_MAX_DELAY) != HAL_OK)
     {
-        return HAL_ERROR;
-    }
-
-    status = HAL_I2C_Mem_Read(dev->hi2c, dev->address, 
-                              BME280_REG_PRESS_MSB, I2C_MEMADD_SIZE_8BIT, 
-                              &data, 8, HAL_MAX_DELAY);
-
-    if (status != HAL_OK)
-    {
-        return status;
+        return BME280_ERR_I2C;
     }
 
     pData->raw_press = (int32_t)((data[0] << 12) | (data[1] << 4) | (data[2] >> 4));
     pData->raw_temp = (int32_t)((data[3] << 12) | (data[4] << 4) | (data[5] >> 4));
     pData->raw_hum = (int32_t)((data[6] << 8) | data[7]);
 
-    return HAL_OK;
+    return BME280_OK;
 }
 
 /*******************************************************************************
@@ -404,31 +404,26 @@ HAL_StatusTypeDef BME280_ReadRaw(BME280_Handle_t *dev, BME280_RawData_t *pData)
  * @param[in,out] dev Pointer to the BME280 device handle where the parsed coefficients 
  *                    will be stored.
  *
- * @retval HAL_OK    All calibration data was successfully retrieved and parsed.
- * @retval HAL_ERROR An I2C communication error occurred during one of the reads.
+ * @retval BME280_OK All calibration data was successfully retrieved and parsed.
+ * @retval BME280_ERR_I2C An I2C communication error occurred during one of the reads.
  ******************************************************************************/
-HAL_StatusTypeDef BME280_ReadCalibration(BME280_Handle_t *dev)
+static BME280_Status_t BME280_ReadCalibration(BME280_Handle_t *dev)
 {
     uint8_t calib[32];
     uint8_t calib2[7];
-    HAL_StatusTypeDef status;
 
-    status = HAL_I2C_Mem_Read(dev->hi2c, dev->address, 
-                              0x88, I2C_MEMADD_SIZE_8BIT, 
-                              &calib, 25, HAL_MAX_DELAY);
-
-    if (status != HAL_OK)
+    if (HAL_I2C_Mem_Read(dev->hi2c, dev->address,
+            0x88, I2C_MEMADD_SIZE_8BIT,
+            calib, 25, HAL_MAX_DELAY) != HAL_OK)
     {
-        return status;
+        return BME280_ERR_I2C;
     }
 
-    status = HAL_I2C_Mem_Read(dev->hi2c, dev->address, 
-                              0xE1, I2C_MEMADD_SIZE_8BIT, 
-                              &calib2, 7, HAL_MAX_DELAY);
-
-    if (status != HAL_OK)
+    if (HAL_I2C_Mem_Read(dev->hi2c, dev->address,
+            0xE1, I2C_MEMADD_SIZE_8BIT,
+            calib2, 7, HAL_MAX_DELAY) != HAL_OK)
     {
-        return status;
+        return BME280_ERR_I2C;
     }
 
     dev->calib.dig_T1 = (uint16_t)(calib[1] << 8 | calib[0]);

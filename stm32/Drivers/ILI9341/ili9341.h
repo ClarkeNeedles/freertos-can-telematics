@@ -64,6 +64,13 @@ extern "C" {
  * ============================================================================
  */
 
+typedef enum
+{
+  ILI9341_OK          = 0,  // Operation completed successfully.
+  ILI9341_ERR_SPI     = 1,  // Physical bus communication failure over SPI.
+  ILI9341_ERR_BOUNDS  = 2   // Drawing coordinates are completely off-screen.
+} ILI9341_Status_t;
+
 typedef struct 
 {
     SPI_HandleTypeDef *hspi;     // Pointer to HAL SPI handle
@@ -87,42 +94,54 @@ typedef enum
  * ============================================================================
  */
 
-/**
- * @brief Initializes the ILI9341 display with default landscape configuration.
+/*******************************************************************************
+ * @brief Initializes the ILI9341 display controller with standard parameters.
  *
- * This function handles the hardware power-on reset, executes the mandatory factory 
- * startup command sequences (power control, frame control, gamma correction), configures
- * the display mode to 320x240 landscape orientation, and wakes up the display panel.
+ * This function toggles the hardware reset line (if configured), runs a software
+ * reset command sequence, and configures internal power controls, driver timings,
+ * gamma curves, frame refresh rates, pixel format structures (RGB565), and structures
+ * default landscape layout configurations.
  *
- * @param[in,out] dev Pointer to the ILI9341 device handle containing hardware configuration.
- */
-void ILI9341_Init(ILI9341_Handle_t *dev);
+ * @param[in,out] dev Pointer to the ILI9341 device handle containing SPI details.
+ *
+ * @retval ILI9341_OK      Display controller successfully initialized and activated.
+ * @retval ILI9341_ERR_SPI Critical initialization configuration commands timed out over SPI.
+ ******************************************************************************/
+ILI9341_Status_t ILI9341_Init(ILI9341_Handle_t *dev);
 
-/**
- * @brief Fills a bounded rectangular segment block with a solid color.
+/*******************************************************************************
+ * @brief Fills a bounded rectangular region with a solid 16-bit color.
  *
- * This function sets up a bounding framework and streams pixel color data into 
- * the defined zone. It automatically manages boundaries to clip requests outside 
- * the screen dimensions.
+ * This function handles clipping algorithms to keep shapes inside screen layout edges,
+ * sets the frame address display boundaries, and uses an optimized block burst buffer
+ * system to rapidly flush color data arrays out over the SPI peripheral lines.
  *
- * @param[in] dev          Pointer to the ILI9341 device handle.
- * @param[in] x            Top-left column location point.
- * @param[in] y            Top-left row location point.
- * @param[in] w            Width size allocation block.
- * @param[in] h            Height size allocation block.
- * @param[in] color_rgb565 Raw 16-bit colour formatting code in RGB565 matrix pattern.
- */
-void ILI9341_FillRectangle(ILI9341_Handle_t *dev, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color_rgb565);
+ * @param[in,out] dev          Pointer to the ILI9341 device handle.
+ * @param[in]     x            Starting horizontal pixel coordinate.
+ * @param[in]     y            Starting vertical pixel coordinate.
+ * @param[in]     w            Width of the block rectangle in pixels.
+ * @param[in]     h            Height of the block rectangle in pixels.
+ * @param[in]     color_rgb565 The raw 16-bit color mapping value to fill.
+ *
+ * @retval ILI9341_OK          Block region filled successfully.
+ * @retval ILI9341_ERR_BOUNDS  Coordinates exist completely off the active display space.
+ * @retval ILI9341_ERR_SPI     Data burst sequence timed out or crashed the SPI hardware peripheral.
+ ******************************************************************************/
+ILI9341_Status_t ILI9341_FillRectangle(ILI9341_Handle_t *dev, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color_rgb565);
 
-/**
- * @brief Draws a single pixel at a designated (X, Y) coordinate.
+/*******************************************************************************
+ * @brief Draws a single independent pixel element to the coordinate matrix.
  *
- * @param[in] dev          Pointer to the ILI9341 device handle.
- * @param[in] x            Column location of the pixel.
- * @param[in] y            Row location of the pixel.
- * @param[in] color_rgb565 Raw 16-bit colour formatting code in RGB565 matrix pattern.
- */
-void ILI9341_DrawPixel(ILI9341_Handle_t *dev, uint16_t x, uint16_t y, uint16_t color_rgb565);
+ * @param[in,out] dev          Pointer to the ILI9341 device handle.
+ * @param[in]     x            Horizontal layout grid target coordinate.
+ * @param[in]     y            Vertical layout grid target coordinate.
+ * @param[in]     color_rgb565 Raw 16-bit structured color depth to write.
+ *
+ * @retval ILI9341_OK          Pixel placed successfully.
+ * @retval ILI9341_ERR_BOUNDS  Coordinate is out of bounds.
+ * @retval ILI9341_ERR_SPI     SPI communication failure.
+ ******************************************************************************/
+ILI9341_Status_t ILI9341_DrawPixel(ILI9341_Handle_t *dev, uint16_t x, uint16_t y, uint16_t color_rgb565);
 
 #ifdef __cplusplus
 }

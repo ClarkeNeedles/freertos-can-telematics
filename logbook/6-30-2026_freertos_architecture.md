@@ -69,5 +69,4 @@ While tracking previously printed metrics using "shadow variables" to skip ident
 Because the text boxes and weather icons occupy tiny pixel arrays, the display driver is fast enough to blindly repaint the text fields and status symbols inside the bottom half of the screen every time the 15-minute telemetry routine completes without impacting system performance.
 
 Pro Tip for FreeRTOS Setup: When initializing your tasks in STM32CubeMX, verify that you assign osPriorityNormal to your Live Sensor Loop and osPriorityBelowNormal to your Telemetry Loop to match this document's hardware requirements exactly.
-Would you like help writing the C language function declarations or the FreeRTOS template creation boilerplate code for these specific configurations next?
 
