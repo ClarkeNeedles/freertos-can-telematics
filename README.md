@@ -1,6 +1,6 @@
 ![Project Status](https://img.shields.io/badge/status-in--progress-yellowgreen)
 ![Project Version](https://img.shields.io/badge/version-0.2.1-blue)
-![https://shields.io/ClarkeNeedles/Autonomous-PiCar](https://img.shields.io/github/repo-size/ClarkeNeedles/Autonomous-PiCar)
+![https://shields.io/ClarkeNeedles/Autonomous-PiCar](https://img.shields.io/github/repo-size/ClarkeNeedles/freertos-can-telematics)
 
 # CAN-Enabled Weather Telematics Dashboard
 
