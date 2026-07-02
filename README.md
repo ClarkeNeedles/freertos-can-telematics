@@ -1,19 +1,6 @@
-```markdown
----
-badges:
-  - type: status
-    label: Status
-    message: In Progress
-    color: yellow
-  - type: version
-    label: Version
-    message: 0.5.3
-    color: blue
-  - type: size
-    label: Project Size
-    message: Small (6+ components)
-    color: orange
----
+![Project Status](https://img.shields.io/badge/status-in--progress-yellowgreen)
+![Project Version](https://img.shields.io/badge/version-0.5.3-green)
+![Project Size](https://img.shields.io/github/repo-size/ClarkeNeedles/freertos-can-telematics)
 
 # CAN-Enabled Weather Telematics Dashboard
 
