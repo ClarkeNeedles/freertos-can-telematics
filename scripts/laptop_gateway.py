@@ -107,19 +107,7 @@ def main_rx_loop():
 
 if __name__ == "__main__":
     try:
-        #main_rx_loop()
-        print("[*] Testing OpenWeatherMap API call...")
-        result = fetch_weather_data(45.3333, -75.9000)
-        
-        if result:
-            print("[+] SUCCESS! API returned data:")
-            print(f"    Temperature:  {result['temp_c']} °C")
-            print(f"    Wind Speed:   {result['wind_speed']} m/s")
-            print(f"    Humidity:     {result['humidity']}%")
-            print(f"    Condition ID: {result['condition_id']}")
-        else:
-            print("[-] FAILED to get a valid response.")
-
+        main_rx_loop()
     except KeyboardInterrupt:
         print("\n[*] Script terminated by user. Releasing CAN Bus interface.")
         bus.shutdown()
