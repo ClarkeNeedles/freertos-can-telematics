@@ -45,6 +45,8 @@ NEO6M_Status_t NEO6M_Init(NEO6M_Handle_t *dev)
 // -----------------------------------------------------------------------------
 NEO6M_Status_t NEO6M_UART_CallBack(NEO6M_Handle_t *dev)
 {
+    NEO6M_Status_t status = NEO6M_OK;
+
     if ((dev->rx_data != '\n') && (dev->rx_index < GPSBUFSIZE))
     {
         dev->rx_buffer[dev->rx_index++] = dev->rx_data; // Move data into buffer
@@ -55,12 +57,12 @@ NEO6M_Status_t NEO6M_UART_CallBack(NEO6M_Handle_t *dev)
         {
             if (NEO6M_Parse((char*) dev->rx_buffer, &dev->gps_data) != NEO6M_OK)
             {
-                return NEO6M_ERR_UART;
+                status = NEO6M_ERR_UART;
             }
         }
         else
         {
-            return NEO6M_ERR_VALIDATION;
+            status = NEO6M_ERR_VALIDATION;
         }
 
         // Reset buffer
@@ -74,7 +76,7 @@ NEO6M_Status_t NEO6M_UART_CallBack(NEO6M_Handle_t *dev)
         return NEO6M_ERR_UART;
     }
 
-    return NEO6M_OK;
+    return status;
 }
 
 /*
