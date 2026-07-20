@@ -29,9 +29,10 @@ static BME280_Status_t BME280_ReadCalibration(BME280_Handle_t *dev);
  */
 
 // -----------------------------------------------------------------------------
-BME280_Status_t BME280_Init(BME280_Handle_t *dev, BME280_Config_t *cfg)
+BME280_Status_t BME280_Init(BME280_Handle_t *dev, BME280_Config_t cfg)
 {
     BME280_Status_t status;
+    uint8_t config;
 
     status = BME280_CheckID(dev);
     if (status != BME280_OK)
@@ -52,15 +53,16 @@ BME280_Status_t BME280_Init(BME280_Handle_t *dev, BME280_Config_t *cfg)
     }
 
     // Humidity oversampling must be set first
+    config = (uint8_t) cfg.osrs_h
     if (HAL_I2C_Mem_Write(dev->hi2c, dev->address,
             BME280_REG_CTRL_HUM, I2C_MEMADD_SIZE_8BIT,
-            &cfg->osrs_h, 1, HAL_MAX_DELAY) != HAL_OK)
+            &config, 1, HAL_MAX_DELAY) != HAL_OK)
     {
         return BME280_ERR_I2C;
     }
 
     // Config register
-    uint8_t config = (cfg->standby << 5) | (cfg->filter << 2);
+    config = (uint8_t) (cfg.standby << 5) | (cfg.filter << 2);
     if (HAL_I2C_Mem_Write(dev->hi2c, dev->address,
             BME280_REG_CONFIG, I2C_MEMADD_SIZE_8BIT,
             &config, 1, HAL_MAX_DELAY) != HAL_OK)
@@ -69,7 +71,7 @@ BME280_Status_t BME280_Init(BME280_Handle_t *dev, BME280_Config_t *cfg)
     }
 
     // Control measurement register
-    uint8_t ctrl_meas = (cfg->osrs_t << 5) | (cfg->osrs_p << 2) | (cfg->mode);
+    config = (uint8_t) (cfg.osrs_t << 5) | (cfg.osrs_p << 2) | (cfg.mode);
     if (HAL_I2C_Mem_Write(dev->hi2c, dev->address,
             BME280_REG_CTRL_MEAS, I2C_MEMADD_SIZE_8BIT,
             &ctrl_meas, 1, HAL_MAX_DELAY) != HAL_OK)
@@ -321,7 +323,7 @@ static BME280_Status_t BME280_CheckID(BME280_Handle_t *dev)
         return BME280_ERR_ID;
     }
 
-    return HAL_OK;
+    return BME280_OK;
 }
 
 /*******************************************************************************
@@ -350,7 +352,7 @@ static BME280_Status_t BME280_Reset(BME280_Handle_t *dev)
     }
 
     HAL_Delay(100);
-    return HAL_OK;
+    return BME280_OK;
 }
 
 /*******************************************************************************
@@ -447,5 +449,5 @@ static BME280_Status_t BME280_ReadCalibration(BME280_Handle_t *dev)
     dev->calib.dig_H5 = (int16_t)((calib2[5] << 4) | (calib2[4] >> 4));
     dev->calib.dig_H6 = (int8_t)calib2[6];
 
-    return HAL_OK;
+    return BME280_OK;
 }

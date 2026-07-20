@@ -89,13 +89,14 @@ typedef enum
 
 typedef struct
 {
-    uint8_t osrs_t;
-    uint8_t osrs_p;
-    uint8_t osrs_h;
-    uint8_t mode;
-    uint8_t standby;
-    uint8_t filter;
-} BME280_Config_t;
+    uint32_t osrs_t  : 3;  // Bits 0..2
+    uint32_t osrs_p  : 3;  // Bits 3..5
+    uint32_t osrs_h  : 3;  // Bits 6..8
+    uint32_t mode    : 2;  // Bits 9..10
+    uint32_t standby : 3;  // Bits 11..13
+    uint32_t filter  : 3;  // Bits 14..16
+                           // Bits 17..31 are automatic padding (15 bits)
+} BME280_Config_t;         // Total size: Exactly 4 bytes (1 word)
 
 typedef struct
 {
@@ -113,9 +114,10 @@ typedef struct
 
 typedef struct
 {
-    I2C_HandleTypeDef *hi2c;
-    uint8_t address;
+    // Do not alter the order of this data structure
+    // The memory packing is properly aligned
 
+    I2C_HandleTypeDef *hi2c;
     int32_t t_fine;
 
     // Calibration data (filled at init)
@@ -135,13 +137,17 @@ typedef struct
         int16_t  dig_P8;
         int16_t  dig_P9;
 
-        uint8_t  dig_H1;
+        
         int16_t  dig_H2;
-        uint8_t  dig_H3;
         int16_t  dig_H4;
         int16_t  dig_H5;
+        uint8_t  dig_H1;
+        uint8_t  dig_H3;
         int8_t   dig_H6;
     } calib;
+
+    uint8_t address;
+
 } BME280_Handle_t;
 
 /*
@@ -163,14 +169,14 @@ typedef struct
  *       the changes to take effect.
  *
  * @param[in,out] dev Pointer to the BME280 device handle containing I2C details.
- * @param[in]     cfg Pointer to the configuration structure holding sensor settings.
+ * @param[in]     cfg Configuration structure holding sensor settings.
  *
  * @retval BME280_OK        Sensor successfully initialized and configured.
  * @retval BME280_ERR_ID    Device chip ID verification failed.
  * @retval BME280_ERR_RESET Sensor software reset sequence timed out or failed.
  * @retval BME280_ERR_I2C   Physical I2C bus communications failed.
  ******************************************************************************/
-BME280_Status_t BME280_Init(BME280_Handle_t *dev, BME280_Config_t *cfg);
+BME280_Status_t BME280_Init(BME280_Handle_t *dev, BME280_Config_t cfg);
 
 /*******************************************************************************
  * @brief Places the BME280 sensor into a low-power sleep state.
