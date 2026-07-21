@@ -52,12 +52,12 @@ typedef struct
 {
     UART_HandleTypeDef *huart;
 
+    NEO6M_Data_t gps_data;
+
     // Receive buffer
     uint8_t rx_data;
     uint8_t rx_buffer[GPSBUFSIZE];
     uint8_t rx_index;
-
-    NEO6M_Data_t gps_data;
 } NEO6M_Handle_t;
 
 /*

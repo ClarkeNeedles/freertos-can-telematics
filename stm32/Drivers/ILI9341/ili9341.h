@@ -75,10 +75,11 @@ typedef struct
 {
     SPI_HandleTypeDef *hspi;     // Pointer to HAL SPI handle
     GPIO_TypeDef      *cs_port;  // Chip Select GPIO Port
-    uint16_t           cs_pin;   // Chip Select GPIO Pin
     GPIO_TypeDef      *dc_port;  // Data/Command GPIO Port
-    uint16_t           dc_pin;   // Data/Command GPIO Pin
     GPIO_TypeDef      *rst_port; // Reset GPIO Port (Optional, can tie to HW Reset)
+    
+    uint16_t           cs_pin;   // Chip Select GPIO Pin
+    uint16_t           dc_pin;   // Data/Command GPIO Pin
     uint16_t           rst_pin;  // Reset GPIO Pin
 } ILI9341_Handle_t;
 
